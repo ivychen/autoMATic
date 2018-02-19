@@ -1,4 +1,4 @@
-(* Ocamllex scanner for MicroC *)
+(* Ocamllex scanner for autoMATic *)
 
 { open Parser }
 
@@ -10,14 +10,23 @@ rule token = parse
 | "/*"     { comment lexbuf }           (* Comments *)
 | '('      { LPAREN }
 | ')'      { RPAREN }
+| '['      { LBRACKET }
+| ']'      { RBRACKET } 
 | '{'      { LBRACE }
 | '}'      { RBRACE }
 | ';'      { SEMI }
 | ','      { COMMA }
 | '+'      { PLUS }
+| "++"     { PLUSPLUS }    
 | '-'      { MINUS }
+| "--"     { MINUSMINUS }
 | '*'      { TIMES }
+| "**"     { EXP }
+| ".*"     { ELEMTIMES }
 | '/'      { DIVIDE }
+| "./"     { ELEMDIVIDE }
+| "'"      { TRANSPOSE }
+| '%'      { MOD }
 | '='      { ASSIGN }
 | "=="     { EQ }
 | "!="     { NEQ }
@@ -25,11 +34,12 @@ rule token = parse
 | "<="     { LEQ }
 | ">"      { GT }
 | ">="     { GEQ }
-| "&&"     { AND }
-| "||"     { OR }
-| "!"      { NOT }
+| "and"    { AND }
+| "or"     { OR }
+| "not"    { NOT }
 | "if"     { IF }
 | "else"   { ELSE }
+| "elif"   { ELIF }
 | "for"    { FOR }
 | "while"  { WHILE }
 | "return" { RETURN }
