@@ -109,9 +109,9 @@ expr:
   | expr OR         expr { Binop($1, Or,       $3)  }
   | MINUS expr %prec NEG { Unop(Neg, $2)            }
   | NOT expr         { Unop(Not, $2)                }
-  | PLUSPLUS expr    { Unop(Inc, $2)                } 
-  | MINUSMINUS expr  { Unop(Dec, $2)                }
-  | TRANSPOSE expr   { Unop(Trans, $2)              }
+  | expr PLUSPLUS    { Unop(Inc, $1)                } 
+  | expr MINUSMINUS  { Unop(Dec, $1)                }
+  | expr TRANSPOSE   { Unop(Trans, $1)              }
   | ID ASSIGN expr   { Assign($1, $3)               }
   | ID LPAREN args_opt RPAREN { Call($1, $3)        }
   | LPAREN expr RPAREN { $2                         }
