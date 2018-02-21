@@ -11,7 +11,7 @@ type bind = typ * string
 
 type expr =
     IntLit of int
-  | FloatLit of string
+  | FloatLit of float
   | BoolLit of bool
   | StrLit of string
   | Id of string
@@ -21,6 +21,7 @@ type expr =
   | Call of string * expr list
   (* Matrix specific *)
   | MatLit of expr list list
+(*  | ArrLit of expr list*)
   | Noexpr
 
 type stmt =
@@ -71,13 +72,19 @@ let string_of_uop = function
 (* @TODO: (Ivy) Define index and slice operations, and prettyprint MatLit *)
 (* let matrix_op = function *)
 
+let printlist l = List.iter (fun x -> print_endline x) l
+
 let rec string_of_expr = function
     IntLit(l) -> string_of_int l
-  | FloatLit(l) -> l
+  | FloatLit(l) -> string_of_float l
   | BoolLit(true) -> "true"
   | BoolLit(false) -> "false"
   | Id(s) -> s
   | StrLit(s) -> s
+ (* | MatLit(ll) -> "[" ^ String.concat "," (List.map string_of_expr
+  * (List.concat ll)) ^ "]" *)
+  | MatLit(ll) -> "[" ^ String.concat ";" (List.map (fun lst -> "[" ^
+                        String.concat "," (List.map string_of_expr lst) ^ "]") ll) ^ "]" 
   | Binop(e1, o, e2) ->
       string_of_expr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_expr e2
   | Unop(o, e) -> string_of_uop o ^ string_of_expr e

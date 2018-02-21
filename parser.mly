@@ -4,15 +4,13 @@
 open Ast
 %}
 
-%token SEMI LPAREN RPAREN LBRACE RBRACE COMMA
-
-/* Matrix Delimiter */
-%token LBRACKET RBRACKET
+%token SEMI LPAREN RPAREN LBRACE RBRACE COMMA LBRACKET RBRACKET
 
 /* Operators and Control */
 %token PLUS PLUSPLUS MINUS MINUSMINUS TIMES EXP ELEMTIMES DIVIDE ELEMDIVIDE TRANSPOSE MOD SLICE ASSIGN
-%token NOT EQ NEQ LT LEQ GT GEQ AND OR
+%token NOT EQ NEQ LT LEQ GT GEQ AND OR TRUE FALSE
 %token RETURN IF ELSE ELIF FOR WHILE INT BOOL FLOAT VOID MATRIX STRING
+%token DOT
 %token AUTO
 %token <int> LITERAL
 %token <float> FLIT
@@ -65,7 +63,6 @@ formals_opt:
 
 formal_list:
     typ ID                   { [($1,$2)]     }
-  | AUTO ID                  { [ AutoLit($2) ]     } /* @TODO: define behavior */
   | formal_list COMMA typ ID { ($3,$4) :: $1 }
 
 typ:
@@ -82,7 +79,6 @@ vdecl_list:
 
 vdecl:
    typ ID SEMI { ($1, $2) }
-  | AUTO ID SEMI { AutoLit($2) } /* @TODO: define behavior */
 
 stmt_list:
     /* nothing */  { [] }
@@ -105,8 +101,9 @@ expr_opt:
 expr:
     LITERAL              { IntLit($1)               }
   | FLIT	             { FloatLit($1)             }
-  | BLIT                 { BoolLit($1)              }
-  | STRLIT               { StringLit($1)            }
+  | TRUE                 { BoolLit(true)            }
+  | FALSE                { BoolLit(false)           }
+  | STRLIT               { StrLit($1)               }
   | ID                   { Id($1)                   }
   | expr PLUS       expr { Binop($1, Add,      $3)  }
   | expr MINUS      expr { Binop($1, Sub,      $3)  }
@@ -135,19 +132,12 @@ expr:
   /* Parsing explicit matrix declaration */
   | LBRACKET mat_rows RBRACKET { MatLit(List.rev $2) }
 
-/* Matrix row declaration (single or two dimensions), semicolon-separated rows */
+/* Matrix row declaration */ 
 mat_rows:
-    LBRACKET mat_opt RBRACKET { [$2] }
-  | mat_rows SEMI LBRACKET mat_opt RBRACKET { $4 :: $1 }
+  | LBRACKET args_opt RBRACKET { [$2] }
+  | mat_rows SEMI LBRACKET args_opt RBRACKET { $4 :: $1 }
 
 /* Matrix contains primitive types only @TODO leave for semantic checker? OR create a `mat_expr` that only allows int/float/bool literals*/
-mat_opt:
-  /* nothing */          { [] }
-  | mat_elemlist         { List.rev $1 }
-
-mat_elemlist:
-  expr                   { [$1] }
- | mat_elemlist COMMA expr { $3 :: $1 } /* comma-separated elements */
 
 args_opt:
     /* nothing */ { [] }

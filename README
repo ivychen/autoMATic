@@ -1,8 +1,8 @@
-The MicroC compiler
+The autoMATic compiler
 
-Coded in OCaml, this takes a highly stripped-down subset of C (ints, floats,
-bools, and void types, arithmetic, if-else, for, and while statements,
-and user-defined functions) and compiles it into LLVM IR.
+Coded in OCaml, autoMATic takes in data types such as: ints, floats,
+bools, void, matrix, and string types. Additionally, it allows for
+arithmetic, if-else, for, while statements, and user-defined functions.
 
 It needs the OCaml llvm library, which is most easily installed through opam.
 
@@ -12,15 +12,6 @@ and opam, then use opam to install llvm.
 The version of the OCaml llvm library must match the version of the LLVM
 system installed on your system.
 
-In addition to print, which calls the C library function printf(),
-microc gratuitiously includes a primitive function "printbig," which
-prints large ASCII-encoded characters.
-
-The stock C compiler compiles printbig.o.  testall.sh runs the microc
-executable on each testcase (.mc file) to produce a .ll file, invokes
-"llc" (the LLVM compiler) to produce a .s (assembly) file, then
-invokes "cc" (the stock C compiler) to assemble the .s file, link in
-printbig.o, and generate an executable.  See testall.sh for details.
 ------------------------------
 Installation under Ubuntu 16.04
 
@@ -204,4 +195,8 @@ test-fib...OK
 ...
 fail-while1...OK
 fail-while2...OK
+
+
+------------------------------
+Additional Syntax To Be Added:
 

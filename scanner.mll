@@ -40,6 +40,7 @@ rule token = parse
 | ">"      { GT }
 | ">="     { GEQ }
 | "not"    { NOT }
+| '.'      { DOT }
 (* ---------- CONTROL FLOW -------- *)
 | "and"    { AND }
 | "or"     { OR }
@@ -58,8 +59,8 @@ rule token = parse
 | "void"   { VOID }
 | "auto"   { AUTO }
 (* ---------- LITERALS -----------*)
-| "true"   { BLIT(true)  }
-| "false"  { BLIT(false) }
+| "true"   { TRUE }
+| "false"  { FALSE }
 | digits as lxm { LITERAL(int_of_string lxm) }
 | digits '.'  digit* ( ['e' 'E'] ['+' '-']? digits )? as lxm {
     FLIT(float_of_string lxm) }
@@ -73,5 +74,5 @@ and comment = parse
 | _    { comment lexbuf }
 
 and linecomment  = parse
- ['\n' 'r'] { token lexbuf }
+ ['\n' '\r'] { token lexbuf }
 | _         { linecomment lexbuf }
