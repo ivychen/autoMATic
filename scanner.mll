@@ -7,7 +7,10 @@ let digits = digit+
 
 rule token = parse
   [' ' '\t' '\r' '\n'] { token lexbuf } (* Whitespace *)
-| "/*"     { comment lexbuf }           (* Comments *)
+(* ---------- COMMENTS ----------- *)
+| "/*"     { comment lexbuf }           (* Multiline Comments *)
+| "//"     { linecomment lexbuf }       (* Singleline Comments *)
+(* ---------- SYNTAX  ------------ *)
 | '('      { LPAREN }
 | ')'      { RPAREN }
 | '['      { LBRACKET }
@@ -16,6 +19,7 @@ rule token = parse
 | '}'      { RBRACE }
 | ';'      { SEMI }
 | ','      { COMMA }
+(* ---------- OPERATORS ---------- *)
 | '+'      { PLUS }
 | "++"     { PLUSPLUS }    
 | '-'      { MINUS }
@@ -27,6 +31,7 @@ rule token = parse
 | "./"     { ELEMDIVIDE }
 | "'"      { TRANSPOSE }
 | '%'      { MOD }
+| ':'      { SLICE }
 | '='      { ASSIGN }
 | "=="     { EQ }
 | "!="     { NEQ }
@@ -34,27 +39,39 @@ rule token = parse
 | "<="     { LEQ }
 | ">"      { GT }
 | ">="     { GEQ }
+| "not"    { NOT }
+(* ---------- CONTROL FLOW -------- *)
 | "and"    { AND }
 | "or"     { OR }
-| "not"    { NOT }
 | "if"     { IF }
 | "else"   { ELSE }
 | "elif"   { ELIF }
 | "for"    { FOR }
 | "while"  { WHILE }
 | "return" { RETURN }
+(* ---------- TYPES ---------- *)
 | "int"    { INT }
 | "bool"   { BOOL }
 | "float"  { FLOAT }
+| "matrix" { MATRIX }
+| "string" { STRING }
 | "void"   { VOID }
+| "auto"   { AUTO }
+(* ---------- LITERALS -----------*)
 | "true"   { BLIT(true)  }
 | "false"  { BLIT(false) }
 | digits as lxm { LITERAL(int_of_string lxm) }
-| digits '.'  digit* ( ['e' 'E'] ['+' '-']? digits )? as lxm { FLIT(lxm) }
+| digits '.'  digit* ( ['e' 'E'] ['+' '-']? digits )? as lxm {
+    FLIT(float_of_string lxm) }
 | ['a'-'z' 'A'-'Z']['a'-'z' 'A'-'Z' '0'-'9' '_']*     as lxm { ID(lxm) }
+| '"' ([^ '"']* as lxm) '"' { STRLIT(lxm) }
 | eof { EOF }
 | _ as char { raise (Failure("illegal character " ^ Char.escaped char)) }
 
 and comment = parse
   "*/" { token lexbuf }
 | _    { comment lexbuf }
+
+and linecomment  = parse
+ ['\n' 'r'] { token lexbuf }
+| _         { linecomment lexbuf }
