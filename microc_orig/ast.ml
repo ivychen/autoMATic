@@ -1,27 +1,23 @@
 (* Abstract Syntax Tree and functions for printing it *)
 
-type op = Add | Sub | Mult | Exp | ElemMult | Div | ElemDiv | Mod | Equal | Neq
-        | Less | Leq | Greater | Geq | And | Or
+type op = Add | Sub | Mult | Exp | ElemMult | Div | ElemDiv | Mod | Equal | Neq | Less | Leq | Greater | Geq |
+          And | Or
 
 type uop = Neg | Not | Inc | Dec | Trans
 
-type typ = Int | Bool | Float | String | Matrix | Void
+type typ = Int | Bool | Float | Void
 
 type bind = typ * string
 
 type expr =
-    IntLit of int
-  | FloatLit of float
+    Literal of int
+  | Fliteral of string
   | BoolLit of bool
-  | StrLit of string
   | Id of string
   | Binop of expr * op * expr
   | Unop of uop * expr
   | Assign of string * expr
   | Call of string * expr list
-  (* Matrix specific *)
-  | MatLit of expr list list
-(*  | ArrLit of expr list*)
   | Noexpr
 
 type stmt =
@@ -69,22 +65,12 @@ let string_of_uop = function
   | Dec -> "--"
   | Trans -> "'"
 
-(* @TODO: (Ivy) Define index and slice operations, and prettyprint MatLit *)
-(* let matrix_op = function *)
-
-let printlist l = List.iter (fun x -> print_endline x) l
-
 let rec string_of_expr = function
-    IntLit(l) -> string_of_int l
-  | FloatLit(l) -> string_of_float l
+    Literal(l) -> string_of_int l
+  | Fliteral(l) -> l
   | BoolLit(true) -> "true"
   | BoolLit(false) -> "false"
   | Id(s) -> s
-  | StrLit(s) -> s
- (* | MatLit(ll) -> "[" ^ String.concat "," (List.map string_of_expr
-  * (List.concat ll)) ^ "]" *)
-  | MatLit(ll) -> "[" ^ String.concat ";" (List.map (fun lst -> "[" ^
-                        String.concat "," (List.map string_of_expr lst) ^ "]") ll) ^ "]" 
   | Binop(e1, o, e2) ->
       string_of_expr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_expr e2
   | Unop(o, e) -> string_of_uop o ^ string_of_expr e
@@ -110,8 +96,6 @@ let string_of_typ = function
     Int -> "int"
   | Bool -> "bool"
   | Float -> "float"
-  | String -> "string"
-  | Matrix -> "matrix" (* Ivy: also output inferred matrix element type? *)
   | Void -> "void"
 
 let string_of_vdecl (t, id) = string_of_typ t ^ " " ^ id ^ ";\n"

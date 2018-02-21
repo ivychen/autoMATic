@@ -1,15 +1,22 @@
-/* Ocamlyacc parser for MicroC */
+/* Ocamlyacc parser for autoMATic */
 
 %{
 open Ast
 %}
 
-%token SEMI LPAREN RPAREN LBRACE RBRACE COMMA PLUS MINUS TIMES DIVIDE ASSIGN
-%token NOT EQ NEQ LT LEQ GT GEQ AND OR
-%token RETURN IF ELSE FOR WHILE INT BOOL FLOAT VOID
+%token SEMI LPAREN RPAREN LBRACE RBRACE COMMA LBRACKET RBRACKET
+
+/* Operators and Control */
+%token PLUS PLUSPLUS MINUS MINUSMINUS TIMES EXP ELEMTIMES DIVIDE ELEMDIVIDE TRANSPOSE MOD SLICE ASSIGN
+%token NOT EQ NEQ LT LEQ GT GEQ AND OR TRUE FALSE
+%token RETURN IF ELSE ELIF FOR WHILE INT BOOL FLOAT VOID MATRIX STRING
+%token DOT
+%token AUTO
 %token <int> LITERAL
+%token <float> FLIT
 %token <bool> BLIT
-%token <string> ID FLIT
+%token <string> ID
+%token <string> STRLIT
 %token EOF
 
 %start program
@@ -17,14 +24,19 @@ open Ast
 
 %nonassoc NOELSE
 %nonassoc ELSE
+%nonassoc ELIF
 %right ASSIGN
+%left COMMA
+%nonassoc SLICE
 %left OR
 %left AND
 %left EQ NEQ
 %left LT GT LEQ GEQ
 %left PLUS MINUS
-%left TIMES DIVIDE
+%left TIMES ELEMTIMES DIVIDE ELEMDIVIDE MOD
+%left EXP
 %right NOT NEG
+%left PLUSPLUS MINUSMINUS TRANSPOSE
 
 
 %%
@@ -57,6 +69,8 @@ typ:
     INT   { Int   }
   | BOOL  { Bool  }
   | FLOAT { Float }
+  | STRING { String }
+  | MATRIX { Matrix }
   | VOID  { Void  }
 
 vdecl_list:
@@ -85,27 +99,45 @@ expr_opt:
   | expr          { $1 }
 
 expr:
-    LITERAL          { Literal($1)            }
-  | FLIT	     { Fliteral($1)           }
-  | BLIT             { BoolLit($1)            }
-  | ID               { Id($1)                 }
-  | expr PLUS   expr { Binop($1, Add,   $3)   }
-  | expr MINUS  expr { Binop($1, Sub,   $3)   }
-  | expr TIMES  expr { Binop($1, Mult,  $3)   }
-  | expr DIVIDE expr { Binop($1, Div,   $3)   }
-  | expr EQ     expr { Binop($1, Equal, $3)   }
-  | expr NEQ    expr { Binop($1, Neq,   $3)   }
-  | expr LT     expr { Binop($1, Less,  $3)   }
-  | expr LEQ    expr { Binop($1, Leq,   $3)   }
-  | expr GT     expr { Binop($1, Greater, $3) }
-  | expr GEQ    expr { Binop($1, Geq,   $3)   }
-  | expr AND    expr { Binop($1, And,   $3)   }
-  | expr OR     expr { Binop($1, Or,    $3)   }
-  | MINUS expr %prec NEG { Unop(Neg, $2)      }
-  | NOT expr         { Unop(Not, $2)          }
-  | ID ASSIGN expr   { Assign($1, $3)         }
-  | ID LPAREN args_opt RPAREN { Call($1, $3)  }
-  | LPAREN expr RPAREN { $2                   }
+    LITERAL              { IntLit($1)               }
+  | FLIT	             { FloatLit($1)             }
+  | TRUE                 { BoolLit(true)            }
+  | FALSE                { BoolLit(false)           }
+  | STRLIT               { StrLit($1)               }
+  | ID                   { Id($1)                   }
+  | expr PLUS       expr { Binop($1, Add,      $3)  }
+  | expr MINUS      expr { Binop($1, Sub,      $3)  }
+  | expr TIMES      expr { Binop($1, Mult,     $3)  }
+  | expr EXP        expr { Binop($1, Exp,      $3)  }
+  | expr ELEMTIMES  expr { Binop($1, ElemMult, $3)  }
+  | expr DIVIDE     expr { Binop($1, Div,      $3)  }
+  | expr ELEMDIVIDE expr { Binop($1, ElemDiv,  $3)  }
+  | expr MOD        expr { Binop($1, Mod,      $3)  }
+  | expr EQ         expr { Binop($1, Equal,    $3)  }
+  | expr NEQ        expr { Binop($1, Neq,      $3)  }
+  | expr LT         expr { Binop($1, Less,     $3)  }
+  | expr LEQ        expr { Binop($1, Leq,      $3)  }
+  | expr GT         expr { Binop($1, Greater,  $3)  }
+  | expr GEQ        expr { Binop($1, Geq,      $3)  }
+  | expr AND        expr { Binop($1, And,      $3)  }
+  | expr OR         expr { Binop($1, Or,       $3)  }
+  | MINUS expr %prec NEG { Unop(Neg, $2)            }
+  | NOT expr             { Unop(Not, $2)            }
+  | expr PLUSPLUS        { Unop(Inc, $1)            } 
+  | expr MINUSMINUS      { Unop(Dec, $1)            }
+  | expr TRANSPOSE       { Unop(Trans, $1)          }
+  | ID ASSIGN expr       { Assign($1, $3)           }
+  | ID LPAREN args_opt RPAREN { Call($1, $3)        }
+  | LPAREN expr RPAREN   { $2                       }
+  /* Parsing explicit matrix declaration */
+  | LBRACKET mat_rows RBRACKET { MatLit(List.rev $2) }
+
+/* Matrix row declaration */ 
+mat_rows:
+  | LBRACKET args_opt RBRACKET { [$2] }
+  | mat_rows SEMI LBRACKET args_opt RBRACKET { $4 :: $1 }
+
+/* Matrix contains primitive types only @TODO leave for semantic checker? OR create a `mat_expr` that only allows int/float/bool literals*/
 
 args_opt:
     /* nothing */ { [] }

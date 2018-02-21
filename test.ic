@@ -1,0 +1,15 @@
+/* Create a matrix */
+// Assign to matrix literal
+
+int mat(bool is_square) {
+	matrix M;
+
+	if (is_square == true) {
+		M = [[2,2];[2,2]];
+	} else {
+		// 1D matrix
+		M = [[1,2,3]];
+		// this fails M = [1,2,3];
+	}
+	return M;
+}
