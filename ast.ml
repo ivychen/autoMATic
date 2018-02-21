@@ -5,7 +5,7 @@ type op = Add | Sub | Mult | Exp | ElemMult | Div | ElemDiv | Mod | Equal | Neq
 
 type uop = Neg | Not | Inc | Dec | Trans
 
-type typ = Int | Bool | Float | String | Matrix | Array | Void | Auto
+type typ = Int | Bool | Float | String | Matrix | Void | Auto
 
 type bind = typ * string
 
