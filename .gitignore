@@ -2,3 +2,4 @@ _build/*
 *.cmo
 *.cmx
 *.cmi
+automatic.native
