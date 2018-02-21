@@ -5,7 +5,7 @@ type op = Add | Sub | Mult | Exp | ElemMult | Div | ElemDiv | Mod | Equal | Neq
 
 type uop = Neg | Not | Inc | Dec | Trans
 
-type typ = Int | Bool | Float | String | Matrix | Void
+type typ = Int | Bool | Float | String | Matrix | Void | Auto
 
 type bind = typ * string
 
@@ -113,6 +113,7 @@ let string_of_typ = function
   | String -> "string"
   | Matrix -> "matrix" (* Ivy: also output inferred matrix element type? *)
   | Void -> "void"
+  | Auto -> "auto"
 
 let string_of_vdecl (t, id) = string_of_typ t ^ " " ^ id ^ ";\n"
 

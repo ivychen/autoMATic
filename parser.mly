@@ -72,6 +72,7 @@ typ:
   | STRING { String }
   | MATRIX { Matrix }
   | VOID  { Void  }
+  | AUTO { Auto }
 
 vdecl_list:
     /* nothing */    { [] }
