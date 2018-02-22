@@ -1,0 +1,11 @@
+
+bool doubleTrans(M)
+{
+matrix N;
+N = ''M;
+if (N == M)
+{
+return true;
+}
+return false;
+}

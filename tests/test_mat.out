@@ -1,0 +1,14 @@
+
+int mat(is_square)
+{
+matrix M;
+if (is_square == true)
+{
+M = [[1,2,3];[3,2,1];[3,3,3]];
+}
+else
+{
+M = [[1,2,3]];
+}
+return M;
+}
