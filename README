@@ -14,6 +14,8 @@ Coded in OCaml, autoMATic takes in data types such as: ints, floats,
 bools, void, matrix, and string types. Additionally, it allows for
 arithmetic, if-else, for, while statements, and user-defined functions.
 
+Programs in our language end in `.ic`.
+
 ## To compile and execute:
 
 $ make clean
