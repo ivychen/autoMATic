@@ -4,7 +4,7 @@ COMS4115 PLT | Spring 2018
 
 ## Team
 Jimmy O'Donnell		jo2474@columbia.edu
-Ivy Chen			ic2389@columbia.edu
+Ivy Chen		ic2389@columbia.edu
 Nguyen Chi Dung		ncd2118@columbia.edu
 Nelson Gomez		ng2573@columbia.edu
 
@@ -14,7 +14,7 @@ Coded in OCaml, autoMATic takes in data types such as: ints, floats,
 bools, void, matrix, and string types. Additionally, it allows for
 arithmetic, if-else, for, while statements, and user-defined functions.
 
-## To compiler and execute:
+## To compile and execute:
 
 $ make clean
 $ make
@@ -24,6 +24,7 @@ Finished, 16 targets (0 cached) in 00:00:01.
 
 ## To run test script:
 
+Do not run './testgen.sh'
 Run `./test.sh`
 
 ## Additional Syntax to be Added:
