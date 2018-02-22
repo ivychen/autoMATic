@@ -3,3 +3,4 @@ _build/*
 *.cmx
 *.cmi
 automatic.native
+*.output
