@@ -1,4 +1,4 @@
-// Test matrix access
+// Test matrix access and assignment
 void accessMat(matrix M) {
 	int a;
 

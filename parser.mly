@@ -134,7 +134,7 @@ expr:
   /* Parsing explicit matrix declarations */
   | LBRACKET mat_rows RBRACKET { MatLit(List.rev $2) }
   | ID LBRACKET expr RBRACKET LBRACKET expr RBRACKET { MatAccess($1, $3, $6) }
-/*  | ID LBRACKET expr RBRACKET LBRACKET expr RBRACKET ASSIGN expr    {MatAssign($1, $3, $6, $9) }*/
+  | ID LBRACKET expr RBRACKET LBRACKET expr RBRACKET ASSIGN expr { MatAssign($1, $3, $6, $9) }
 
 mat_rows:
   | LBRACKET args_opt RBRACKET { [$2]               }

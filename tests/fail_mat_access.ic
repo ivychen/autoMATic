@@ -1,5 +1,5 @@
 void accessMat(matrix M) {
 	int a;
 
-	a = M[[1]]; 
+	a = M[[1]]; // incorrect matrix access 
 }
