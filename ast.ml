@@ -22,6 +22,7 @@ type expr =
   (* Matrix specific *)
   | MatLit of expr list list
   | MatAccess of string * expr * expr
+  | MatAssign of string * expr * expr * expr
   (*  | ArrLit of expr list*)
   | ArrLit of expr list
   | ArrAccess of string * expr
@@ -74,8 +75,6 @@ let string_of_uop = function
 
 (* @TODO: (Ivy) Define slice operations *)
 
-let printlist l = List.iter (fun x -> print_endline x) l
-
 let rec string_of_expr = function
     IntLit(l) -> string_of_int l
   | FloatLit(l) -> string_of_float l
@@ -83,12 +82,12 @@ let rec string_of_expr = function
   | BoolLit(false) -> "false"
   | Id(s) -> s
   | StrLit(s) -> s
- (* | MatLit(ll) -> "[" ^ String.concat "," (List.map string_of_expr
-  * (List.concat ll)) ^ "]" *)
   | MatLit(ll) -> "[" ^ String.concat ";" (List.map (fun lst -> "[" ^
                         String.concat "," (List.map string_of_expr lst) ^ "]") ll) ^ "]" 
   | MatAccess(id, e1, e2) -> id ^ "[" ^ string_of_expr e1 ^ "][" ^ string_of_expr e2 ^ "]"
-  | ArrLit(lst) -> "[" ^ String.concat "," (List.map string_of_expr (List.rev lst)) ^ "]"
+  | MatAssign(id, e1, e2, e3) -> id ^ "[" ^ string_of_expr e1 ^ "][" ^ 
+                                 string_of_expr e2 ^ "] = " ^ string_of_expr e3
+  | ArrLit(lst) -> "{|" ^ String.concat "," (List.map string_of_expr (List.rev lst)) ^ "|}"
   | ArrAccess(id, e1) -> id ^ "[" ^ string_of_expr e1 ^ "]"
   | Binop(e1, o, e2) ->
       string_of_expr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_expr e2

@@ -4,6 +4,11 @@ Coded in OCaml, autoMATic takes in data types such as: ints, floats,
 bools, void, matrix, and string types. Additionally, it allows for
 arithmetic, if-else, for, while statements, and user-defined functions.
 
+SEE END OF FILE FOR COMPILATION + TEST SCRIPT INSTRUCTIONS
+
+==============================
+NOTE: FOLLOW THE INSTRUCTIONS BELOW TO INSTALL OCAML, LLVM + DEPENDENCIES
+
 It needs the OCaml llvm library, which is most easily installed through opam.
 
 Install LLVM and its development libraries, the m4 macro preprocessor,
@@ -181,12 +186,17 @@ Installation under OS X
    As before, you may also modify the path to lli in testall.sh
 
 ------------------------------
-To run and test:
+To compile and execute:
 
+$ make clean
 $ make
-ocamlbuild -use-ocamlfind -pkgs llvm,llvm.analysis -cflags -w,+a-4 microc.native
-Finished, 22 targets (0 cached) in 00:00:01.
-cc    -c -o printbig.o printbig.c
+rm -f *.o
+ocamlbuild -use-ocamlfind -pkgs llvm,llvm.analysis -cflags -w,+a-4 automatic.native
+Finished, 16 targets (0 cached) in 00:00:01.
+
+------------------------------
+To run test script:
+
 $ ./testall.sh
 test-arith1...OK
 test-arith2...OK
@@ -200,3 +210,7 @@ fail-while2...OK
 ------------------------------
 Additional Syntax To Be Added:
 
+- `elif` statements need to be parsed
+- allow for variable declaration within statements
+- Matrix slicing
+- Decide on whether to keep array data structure
