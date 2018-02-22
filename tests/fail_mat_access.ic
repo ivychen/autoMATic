@@ -1,0 +1,5 @@
+void accessMat(matrix M) {
+	int a;
+
+	a = M[[1]]; 
+}

@@ -3,8 +3,6 @@
 int GCD(int a, int b) {
 	int c;
 	while (a > 0) {
-		// FAILS: variable declaration must be outside of control flow
-		// int c;
 		c = b % a;
 		b = a;
 		a = c;
