@@ -1,10 +1,37 @@
-The autoMATic compiler
+# The autoMATic compiler
+
+COMS4115 PLT | Spring 2018
+
+## Team
+Jimmy O'Donnell		jo2474@columbia.edu
+Ivy Chen			ic2389@columbia.edu
+Nguyen Chi Dung		ncd2118@columbia.edu
+Nelson Gomez		ng2573@columbia.edu
+
+## Introduction
 
 Coded in OCaml, autoMATic takes in data types such as: ints, floats,
 bools, void, matrix, and string types. Additionally, it allows for
 arithmetic, if-else, for, while statements, and user-defined functions.
 
-SEE END OF FILE FOR COMPILATION + TEST SCRIPT INSTRUCTIONS
+## To compiler and execute:
+
+$ make clean
+$ make
+rm -f *.o
+ocamlbuild -use-ocamlfind -pkgs llvm,llvm.analysis -cflags -w,+a-4 automatic.native
+Finished, 16 targets (0 cached) in 00:00:01.
+
+## To run test script:
+
+Run `./test.sh`
+
+## Additional Syntax to be Added:
+
+1. `elif` statements need to be parsed
+2. allow for variable declaration within statements
+3. matrix slicing
+4. decide on whether to keep array type
 
 ==============================
 NOTE: FOLLOW THE INSTRUCTIONS BELOW TO INSTALL OCAML, LLVM + DEPENDENCIES
@@ -29,7 +56,7 @@ opam install llvm.3.8
 eval `opam config env`
 
 make
-./testall.sh
+./test.sh
 
 ------------------------------
 Installation under Ubuntu 15.10
@@ -43,7 +70,7 @@ opam install llvm.3.6 ocamlfind
 eval `opam config env`
 
 make
-./testall.sh
+./test.sh
 
 ------------------------------
 Installation under Ubuntu 14.04
@@ -166,51 +193,21 @@ Installation under OS X
 
    export PATH=$PATH:/usr/local/opt/llvm/bin
 
-   A third solution is to modify the definition of LLI in testall.sh to
+   A third solution is to modify the definition of LLI in test.sh to
    point to the absolute path, e.g., LLI="/usr/local/opt/llvm/bin/lli"
 
-9. To run and test, navigate to the MicroC folder. Once there, run
+9. To run and test, navigate to the autoMATic folder. Once there, run
 
-   make ; ./testall.sh
+   make ; ./test.sh
 
-   MicroC should build without any complaints and all tests should
+   autoMATic should build without any complaints and all tests should
    pass.
 
-   IF RUNNING ./testall.sh FAILS ON SOME TESTS, check to make sure you
+   IF RUNNING ./test.sh FAILS ON SOME TESTS, check to make sure you
    have symlinked the correct executable from your llvm installation.
    For example, if the executable is named lli-[version], then the 
    previous step should have looked something like:
 
    sudo ln -s /usr/local/opt/llvm/bin/lli-3.7 /usr/bin/lli   
 
-   As before, you may also modify the path to lli in testall.sh
-
-------------------------------
-To compile and execute:
-
-$ make clean
-$ make
-rm -f *.o
-ocamlbuild -use-ocamlfind -pkgs llvm,llvm.analysis -cflags -w,+a-4 automatic.native
-Finished, 16 targets (0 cached) in 00:00:01.
-
-------------------------------
-To run test script:
-
-$ ./testall.sh
-test-arith1...OK
-test-arith2...OK
-test-arith3...OK
-test-fib...OK
-...
-fail-while1...OK
-fail-while2...OK
-
-
-------------------------------
-Additional Syntax To Be Added:
-
-- `elif` statements need to be parsed
-- allow for variable declaration within statements
-- Matrix slicing
-- Decide on whether to keep array data structure
+   As before, you may also modify the path to lli in test.sh
