@@ -1,0 +1,9 @@
+bool doubleTrans(matrix M) {
+	matrix N = M''; // can't declare and assign in single statement
+	
+	if (N == M) {
+		return true;
+	}
+	
+	return false;
+}

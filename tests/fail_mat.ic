@@ -1,0 +1,12 @@
+void mat(bool is_square) {
+	matrix M;
+	
+	if (is_square == true) {
+		M = [[1,2,3];[2,3,4];[3,3,3]];
+	} else {
+		// 1D matrix
+		M = [1,2,3];
+	}
+	
+	return;
+}

@@ -1,0 +1,6 @@
+// Test matrix access
+void accessMat(matrix M) {
+	int a;
+
+	a = M[1][1];
+}

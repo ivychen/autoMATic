@@ -5,7 +5,7 @@ type op = Add | Sub | Mult | Exp | ElemMult | Div | ElemDiv | Mod | Equal | Neq
 
 type uop = Neg | Not | Inc | Dec | Trans
 
-type typ = Int | Bool | Float | String | Matrix | Void | Auto
+type typ = Int | Bool | Float | String | Matrix | Array | Void | Auto
 
 type bind = typ * string
 
@@ -21,7 +21,10 @@ type expr =
   | Call of string * expr list
   (* Matrix specific *)
   | MatLit of expr list list
-(*  | ArrLit of expr list*)
+  | MatAccess of string * expr * expr
+  (*  | ArrLit of expr list*)
+  | ArrLit of expr list
+  | ArrAccess of string * expr
   | Noexpr
 
 type stmt =
@@ -64,13 +67,12 @@ let string_of_op = function
 
 let string_of_uop = function
     Neg -> "-"
-  | Not -> "!"
+  | Not -> "not"
   | Inc -> "++"
   | Dec -> "--"
   | Trans -> "'"
 
-(* @TODO: (Ivy) Define index and slice operations, and prettyprint MatLit *)
-(* let matrix_op = function *)
+(* @TODO: (Ivy) Define slice operations *)
 
 let printlist l = List.iter (fun x -> print_endline x) l
 
@@ -85,6 +87,9 @@ let rec string_of_expr = function
   * (List.concat ll)) ^ "]" *)
   | MatLit(ll) -> "[" ^ String.concat ";" (List.map (fun lst -> "[" ^
                         String.concat "," (List.map string_of_expr lst) ^ "]") ll) ^ "]" 
+  | MatAccess(id, e1, e2) -> id ^ "[" ^ string_of_expr e1 ^ "][" ^ string_of_expr e2 ^ "]"
+  | ArrLit(lst) -> "[" ^ String.concat "," (List.map string_of_expr (List.rev lst)) ^ "]"
+  | ArrAccess(id, e1) -> id ^ "[" ^ string_of_expr e1 ^ "]"
   | Binop(e1, o, e2) ->
       string_of_expr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_expr e2
   | Unop(o, e) -> string_of_uop o ^ string_of_expr e
@@ -114,6 +119,7 @@ let string_of_typ = function
   | Matrix -> "matrix" (* Ivy: also output inferred matrix element type? *)
   | Void -> "void"
   | Auto -> "auto"
+  | Array -> "array"
 
 let string_of_vdecl (t, id) = string_of_typ t ^ " " ^ id ^ ";\n"
 

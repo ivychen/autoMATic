@@ -5,11 +5,10 @@ int mat(bool is_square) {
 	matrix M;
 
 	if (is_square == true) {
-		M = [[2,2];[2,2]];
+		M = [[1,2,3];[3,2,1];[3,3,3]];
 	} else {
 		// 1D matrix
 		M = [[1,2,3]];
-		// this fails M = [1,2,3];
 	}
 	return M;
 }

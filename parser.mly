@@ -4,13 +4,10 @@
 open Ast
 %}
 
-%token SEMI LPAREN RPAREN LBRACE RBRACE COMMA LBRACKET RBRACKET
-
-/* Operators and Control */
-%token PLUS PLUSPLUS MINUS MINUSMINUS TIMES EXP ELEMTIMES DIVIDE ELEMDIVIDE TRANSPOSE MOD SLICE ASSIGN
+%token SEMI LPAREN RPAREN LBRACE RBRACE COMMA LBRACKET RBRACKET PIPE
+%token PLUS PLUSPLUS MINUS MINUSMINUS TIMES EXP ELEMTIMES DIVIDE ELEMDIVIDE TRANSPOSE MOD SLICE DOT ASSIGN
 %token NOT EQ NEQ LT LEQ GT GEQ AND OR TRUE FALSE
-%token RETURN IF ELSE ELIF FOR WHILE INT BOOL FLOAT VOID MATRIX STRING
-%token DOT
+%token RETURN IF ELSE ELIF FOR WHILE INT BOOL FLOAT VOID MATRIX STRING ARRAY
 %token AUTO
 %token <int> LITERAL
 %token <float> FLIT
@@ -73,6 +70,7 @@ typ:
   | MATRIX { Matrix }
   | VOID  { Void  }
   | AUTO { Auto }
+  | ARRAY { Array }
 
 vdecl_list:
     /* nothing */    { [] }
@@ -130,15 +128,17 @@ expr:
   | ID ASSIGN expr       { Assign($1, $3)           }
   | ID LPAREN args_opt RPAREN { Call($1, $3)        }
   | LPAREN expr RPAREN   { $2                       }
-  /* Parsing explicit matrix declaration */
+  /* Array literal declarations */
+  | LBRACE PIPE args_opt PIPE RBRACE { ArrLit(List.rev $3)    }
+  | ID LBRACKET expr RBRACKET { ArrAccess($1,$3)    }
+  /* Parsing explicit matrix declarations */
   | LBRACKET mat_rows RBRACKET { MatLit(List.rev $2) }
+  | ID LBRACKET expr RBRACKET LBRACKET expr RBRACKET { MatAccess($1, $3, $6) }
+/*  | ID LBRACKET expr RBRACKET LBRACKET expr RBRACKET ASSIGN expr    {MatAssign($1, $3, $6, $9) }*/
 
-/* Matrix row declaration */ 
 mat_rows:
-  | LBRACKET args_opt RBRACKET { [$2] }
+  | LBRACKET args_opt RBRACKET { [$2]               }
   | mat_rows SEMI LBRACKET args_opt RBRACKET { $4 :: $1 }
-
-/* Matrix contains primitive types only @TODO leave for semantic checker? OR create a `mat_expr` that only allows int/float/bool literals*/
 
 args_opt:
     /* nothing */ { [] }

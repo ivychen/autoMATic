@@ -19,6 +19,7 @@ rule token = parse
 | '}'      { RBRACE }
 | ';'      { SEMI }
 | ','      { COMMA }
+| '|'      { PIPE }
 (* ---------- OPERATORS ---------- *)
 | '+'      { PLUS }
 | "++"     { PLUSPLUS }    
@@ -39,7 +40,7 @@ rule token = parse
 | "<="     { LEQ }
 | ">"      { GT }
 | ">="     { GEQ }
-| "not"    { NOT }
+| "and"    { NOT }
 | '.'      { DOT }
 (* ---------- CONTROL FLOW -------- *)
 | "and"    { AND }
@@ -58,6 +59,7 @@ rule token = parse
 | "string" { STRING }
 | "void"   { VOID }
 | "auto"   { AUTO }
+| "array"  { ARRAY }
 (* ---------- LITERALS -----------*)
 | "true"   { TRUE }
 | "false"  { FALSE }
