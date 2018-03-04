@@ -2,12 +2,23 @@ version: 2
 jobs:
   build:
     docker:
-      - image: debian:stretch
+      - image: nsgomez/coms4115-docker:stable
+
+    working_directory: ~/autoMATic
+    environment:
+      - TERM: dumb
+
+    shell: /bin/bash
     steps:
       - checkout
       - run:
-          name: Greeting
-          command: echo Hello, world.
+          name: Configure OCaml environment
+          command: echo '. /home/opam/.opam/opam-init/init.sh > /dev/null 2> /dev/null || true' >> $BASH_ENV
+
       - run:
-          name: Print the Current Time
-          command: date
+          name: Build language
+          command: make
+
+      - run:
+          name: Run test suite
+          command: ~/autoMATic/test.sh
