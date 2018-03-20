@@ -4,14 +4,22 @@ open Ast
 
 type sexpr = typ * sx
 and sx =
-    SLiteral of int
-  | SFliteral of string
+    SIntLit of int
+  | SFloatLit of float
   | SBoolLit of bool
+  | SStrLit of string
   | SId of string
   | SBinop of sexpr * op * sexpr
   | SUnop of uop * sexpr
   | SAssign of string * sexpr
   | SCall of string * sexpr list
+  (* Matrix specific *)
+  | SMatLit of sexpr list list
+  | SMatAccess of string * sexpr * sexpr
+  | SMatAssign of string * sexpr * sexpr * sexpr
+  (*  | ArrLit of expr list *)
+  | SArrLit of sexpr list
+  | SArrAccess of string * sexpr
   | SNoexpr
 
 type sstmt =
@@ -36,10 +44,11 @@ type sprogram = bind list * sfunc_decl list
 
 let rec string_of_sexpr (t, e) =
   "(" ^ string_of_typ t ^ " : " ^ (match e with
-    SLiteral(l) -> string_of_int l
+    SIntLit(l) -> string_of_int l
+  | SFloatLit(l) -> string_of_float l
   | SBoolLit(true) -> "true"
   | SBoolLit(false) -> "false"
-  | SFliteral(l) -> l
+  | SStrLit(l) -> l
   | SId(s) -> s
   | SBinop(e1, o, e2) ->
       string_of_sexpr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_sexpr e2
@@ -47,6 +56,18 @@ let rec string_of_sexpr (t, e) =
   | SAssign(v, e) -> v ^ " = " ^ string_of_sexpr e
   | SCall(f, el) ->
       f ^ "(" ^ String.concat ", " (List.map string_of_sexpr el) ^ ")"
+  | SMatLit(ell) ->
+      "[" ^ String.concat ", " (List.map (fun el ->
+      "[" ^ String.concat ", " (List.map string_of_sexpr el)) ell) ^ "]"
+  | SMatAccess(s, e1, e2) ->
+      s ^ "[" ^ string_of_sexpr e1 ^ "][" ^ string_of_sexpr e2 ^ "]"
+  | SMatAssign(s, e1, e2, e3) ->
+      s ^ "[" ^ string_of_sexpr e1 ^ "][" ^ string_of_sexpr e2 ^ "] = " ^
+      string_of_sexpr e3
+  | SArrLit(el) -> 
+      "{" ^ String.concat ", " (List.map string_of_sexpr el) ^ "}"
+  | SArrAccess(s, e) -> 
+      s ^ "[" ^ string_of_sexpr e ^ "]"
   | SNoexpr -> ""
 				  ) ^ ")"				     
 
