@@ -31,9 +31,9 @@ let translate (globals, functions) =
   and void_t     = L.void_type   context 
   (* Create an LLVM module -- this is a "container" into which we'll 
      generate actual code *)
-  and the_module = L.create_module context "MicroC" in
+  and the_module = L.create_module context "autoMATic" in
 
-  (* Convert MicroC types to LLVM types *)
+  (* Convert autoMATic types to LLVM types *)
   let ltype_of_typ = function
       A.Int   -> i32_t
     | A.Bool  -> i1_t
@@ -48,11 +48,11 @@ let translate (globals, functions) =
       in StringMap.add n (L.define_global n init the_module) m in
     List.fold_left global_var StringMap.empty globals in
 
-  let printf_t = L.var_arg_function_type i32_t [| L.pointer_type i8_t |] in
+  (*let printf_t = L.var_arg_function_type i32_t [| L.pointer_type i8_t |] in
   let printf_func = L.declare_function "printf" printf_t the_module in
 
   let printbig_t = L.function_type i32_t [| i32_t |] in
-  let printbig_func = L.declare_function "printbig" printbig_t the_module in
+  let printbig_func = L.declare_function "printbig" printbig_t the_module in*)
 
   (* Define each function (arguments and return type) so we can 
    * define it's body and call it later *)
@@ -104,9 +104,9 @@ let translate (globals, functions) =
 
     (* Construct code for an expression; return its value *)
     let rec expr builder (_, e) = match e with
-	SLiteral i -> L.const_int i32_t i
+	SIntLit i -> L.const_int i32_t i
       | SBoolLit b -> L.const_int i1_t (if b then 1 else 0)
-      | SFliteral l -> L.const_float_of_string float_t l
+      | SFloatLit l -> L.const_float float_t l
       | SNoexpr -> L.const_int i32_t 0
       | SId s -> L.build_load (lookup s) s builder
       | SBinop (e1, op, e2) ->
@@ -149,14 +149,14 @@ let translate (globals, functions) =
           | A.Not                  -> L.build_not) e' "tmp" builder
       | SAssign (s, e) -> let e' = expr builder e in
                           let _  = L.build_store e' (lookup s) builder in e'
-      | SCall ("print", [e]) | SCall ("printb", [e]) ->
+      (*| SCall ("print", [e]) | SCall ("printb", [e]) ->
 	  L.build_call printf_func [| int_format_str ; (expr builder e) |]
 	    "printf" builder
       | SCall ("printbig", [e]) ->
 	  L.build_call printbig_func [| (expr builder e) |] "printbig" builder
       | SCall ("printf", [e]) -> 
 	  L.build_call printf_func [| float_format_str ; (expr builder e) |]
-	    "printf" builder
+	    "printf" builder*)
       | SCall (f, act) ->
          let (fdef, fdecl) = StringMap.find f function_decls in
 	 let actuals = List.rev (List.map (expr builder) (List.rev act)) in
