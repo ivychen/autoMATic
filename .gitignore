@@ -4,3 +4,6 @@ _build/*
 *.cmi
 automatic.native
 *.output
+*.ll
+*.o
+*.exe
