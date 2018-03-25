@@ -7,3 +7,4 @@ automatic.native
 *.ll
 *.o
 *.exe
+*.S

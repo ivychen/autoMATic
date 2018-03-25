@@ -32,8 +32,8 @@ do
 	touch tmp
 
 	./automatic.native -c "${file}" > "${file}.ll" &&
-	llc "${file}.ll" -o "${file}.o" &&
-	cc "${file}.o" -o "${file}.exe" &&
+	llc-5.0 -relocation-model=pic "${file}.ll" -o "${file}.S" &&
+	cc -o "${file}.exe" "${file}.S" &&
 	"./${file}.exe" > tmp
 
 	filename=$(eval "basename ${file%.*}")
