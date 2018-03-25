@@ -1,0 +1,4 @@
+int main() {
+    printd(4);
+    return 0;
+}
