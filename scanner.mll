@@ -14,7 +14,7 @@ rule token = parse
 | '('      { LPAREN }
 | ')'      { RPAREN }
 | '['      { LBRACKET }
-| ']'      { RBRACKET } 
+| ']'      { RBRACKET }
 | '{'      { LBRACE }
 | '}'      { RBRACE }
 | ';'      { SEMI }
@@ -22,7 +22,7 @@ rule token = parse
 | '|'      { PIPE }
 (* ---------- OPERATORS ---------- *)
 | '+'      { PLUS }
-| "++"     { PLUSPLUS }    
+| "++"     { PLUSPLUS }
 | '-'      { MINUS }
 | "--"     { MINUSMINUS }
 | '*'      { TIMES }
@@ -59,7 +59,7 @@ rule token = parse
 | "string" { STRING }
 | "void"   { VOID }
 | "auto"   { AUTO }
-| "array"  { ARRAY }
+(* "array"  { ARRAY } *)
 (* ---------- LITERALS -----------*)
 | "true"   { TRUE }
 | "false"  { FALSE }

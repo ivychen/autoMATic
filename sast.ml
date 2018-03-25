@@ -1,17 +1,22 @@
 (* Semantically-checked Abstract Syntax Tree and functions for printing it *)
-
+(* SAST for the autoMATic language *)
 open Ast
 
 type sexpr = typ * sx
 and sx =
-    SLiteral of int
-  | SFliteral of string
+    SIntLit of int
+  | SFloatLit of string
   | SBoolLit of bool
+  | SStrLit of string
   | SId of string
   | SBinop of sexpr * op * sexpr
   | SUnop of uop * sexpr
   | SAssign of string * sexpr
   | SCall of string * sexpr list
+  (* Matrix specific *)
+  | SMatLit of sexpr list list
+  | SMatAccess of string * sexpr * sexpr
+  | SMatAssign of string * sexpr * sexpr
   | SNoexpr
 
 type sstmt =
@@ -36,11 +41,17 @@ type sprogram = bind list * sfunc_decl list
 
 let rec string_of_sexpr (t, e) =
   "(" ^ string_of_typ t ^ " : " ^ (match e with
-    SLiteral(l) -> string_of_int l
+    SIntLit(l) -> string_of_int l
   | SBoolLit(true) -> "true"
   | SBoolLit(false) -> "false"
-  | SFliteral(l) -> l
+  | SFloatLit(l) -> string_of_float l
   | SId(s) -> s
+  | SStrLit(s) -> s
+  | SMatLit(ll) -> "[" ^ String.concat ";" (List.map (fun lst -> "[" ^
+                         String.concat "," (List.map string_of_sexpr lst) ^ "]") ll) ^ "]"
+  | SMatAccess(id, e1, e2) -> id ^ "[" ^ string_of_sexpr e1 ^ "][" ^ string_of_sexpr e2 ^ "]"
+  | SMatAssign(id, e1, e2, e3) -> id ^ "[" ^ string_of_sexpr e1 ^ "][" ^
+                                  string_of_sexpr e2 ^ "] = " ^ string_of_sexpr e3
   | SBinop(e1, o, e2) ->
       string_of_sexpr e1 ^ " " ^ string_of_op o ^ " " ^ string_of_sexpr e2
   | SUnop(o, e) -> string_of_uop o ^ string_of_sexpr e
@@ -48,7 +59,7 @@ let rec string_of_sexpr (t, e) =
   | SCall(f, el) ->
       f ^ "(" ^ String.concat ", " (List.map string_of_sexpr el) ^ ")"
   | SNoexpr -> ""
-				  ) ^ ")"				     
+				  ) ^ ")"
 
 let rec string_of_sstmt = function
     SBlock(stmts) ->

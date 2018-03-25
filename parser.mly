@@ -7,7 +7,8 @@ open Ast
 %token SEMI LPAREN RPAREN LBRACE RBRACE COMMA LBRACKET RBRACKET PIPE
 %token PLUS PLUSPLUS MINUS MINUSMINUS TIMES EXP ELEMTIMES DIVIDE ELEMDIVIDE TRANSPOSE MOD SLICE DOT ASSIGN
 %token NOT EQ NEQ LT LEQ GT GEQ AND OR TRUE FALSE
-%token RETURN IF ELSE ELIF FOR WHILE INT BOOL FLOAT VOID MATRIX STRING ARRAY
+%token RETURN IF ELSE ELIF FOR WHILE INT BOOL FLOAT VOID MATRIX STRING
+/* %token ARRAY */
 %token AUTO
 %token <int> LITERAL
 %token <float> FLIT
@@ -70,7 +71,7 @@ typ:
   | MATRIX { Matrix }
   | VOID  { Void  }
   | AUTO { Auto }
-  | ARRAY { Array }
+  /* | ARRAY { Array } */
 
 vdecl_list:
     /* nothing */    { [] }
@@ -122,16 +123,17 @@ expr:
   | expr OR         expr { Binop($1, Or,       $3)  }
   | MINUS expr %prec NEG { Unop(Neg, $2)            }
   | NOT expr             { Unop(Not, $2)            }
-  | expr PLUSPLUS        { Unop(Inc, $1)            } 
+  | expr PLUSPLUS        { Unop(Inc, $1)            }
   | expr MINUSMINUS      { Unop(Dec, $1)            }
   | expr TRANSPOSE       { Unop(Trans, $1)          }
   | ID ASSIGN expr       { Assign($1, $3)           }
   | ID LPAREN args_opt RPAREN { Call($1, $3)        }
   | LPAREN expr RPAREN   { $2                       }
   /* Array literal declarations */
-  | LBRACE PIPE args_opt PIPE RBRACE { ArrLit(List.rev $3)    }
-  | ID LBRACKET expr RBRACKET { ArrAccess($1,$3)    }
-  /* Parsing explicit matrix declarations */
+  /* | LBRACE PIPE args_opt PIPE RBRACE { ArrLit(List.rev $3)    }
+  | ID LBRACKET expr RBRACKET { ArrAccess($1,$3)    } */
+
+  /* Parsing explicit matrix declarations (matrix literals) */
   | LBRACKET mat_rows RBRACKET { MatLit(List.rev $2) }
   | ID LBRACKET expr RBRACKET LBRACKET expr RBRACKET { MatAccess($1, $3, $6) }
   | ID LBRACKET expr RBRACKET LBRACKET expr RBRACKET ASSIGN expr { MatAssign($1, $3, $6, $9) }
