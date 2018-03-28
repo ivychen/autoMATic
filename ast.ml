@@ -38,7 +38,7 @@ type stmt =
   | While of expr * stmt
 
 type func_decl = {
-    typ : typ;
+    mutable typ : typ;
     fname : string;
     formals : bind list;
     locals : bind list;

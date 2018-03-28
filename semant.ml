@@ -42,7 +42,8 @@ let check (globals, functions) =
       typ = returntype; fname = name;
       formals = List.mapi (fun idx argtype -> (argtype, "x" ^ string_of_int idx)) argtypes;
       locals = []; body = [] } map
-    in List.fold_left add_bind StringMap.empty [ ("print", [Int], Void);
+    in List.fold_left add_bind StringMap.empty [ ("printstr", [String], Void);
+                                                 ("print", [Int], Void);
                                                  ("size", [Matrix], Matrix);
                                                  ("det", [Matrix], Float);
                                                  ("minor", [Matrix; Int; Int], Matrix);
@@ -74,7 +75,7 @@ let check (globals, functions) =
 
   let _ = find_func "main" in (* Ensure "main" is defined *)
 
-  let check_function func =
+  let check_function_body func =
     (* Make sure no formals or locals are void or duplicates *)
     let formals' = check_binds "formal" func.formals in
     let locals' = check_binds "local" func.locals in
@@ -168,7 +169,9 @@ let check (globals, functions) =
 	  SFor(expr e1, check_bool_expr e2, expr e3, check_stmt st)
       | While(p, s) -> SWhile(check_bool_expr p, check_stmt s)
       | Return e -> let (t, e') = expr e in
-        if t = func.typ then SReturn (t, e') 
+        if func.typ = Auto then func.typ <- t;
+        
+        if t = func.typ then SReturn (func.typ, e') 
         else raise (
 	  Failure ("return gives " ^ string_of_typ t ^ " expected " ^
 		   string_of_typ func.typ ^ " in " ^ string_of_expr e))
@@ -184,7 +187,7 @@ let check (globals, functions) =
             | []              -> []
           in SBlock(check_stmt_list sl)
 
-    in (* body of check_function *)
+    in (* body of check_function_body *)
     { styp = func.typ;
       sfname = func.fname;
       sformals = formals';
@@ -194,4 +197,8 @@ let check (globals, functions) =
       | _ -> let err = "internal error: block didn't become a block?"
       in raise (Failure err)
     }
-  in (globals', List.map check_function functions)
+
+  (* TODO: write this function for preprocessing auto declarations *)
+  in let check_functions = check_function_body
+      
+  in (globals', List.map check_functions functions)

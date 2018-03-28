@@ -28,17 +28,19 @@ let translate (globals, functions) =
   and i8_t       = L.i8_type     context
   and i1_t       = L.i1_type     context
   and float_t    = L.double_type context
-  and void_t     = L.void_type   context 
+  and void_t     = L.void_type   context in 
+  let str_t      = L.pointer_type i8_t
   (* Create an LLVM module -- this is a "container" into which we'll 
      generate actual code *)
   and the_module = L.create_module context "autoMATic" in
 
   (* Convert autoMATic types to LLVM types *)
   let ltype_of_typ = function
-      A.Int   -> i32_t
-    | A.Bool  -> i1_t
-    | A.Float -> float_t
-    | A.Void  -> void_t
+      A.Int    -> i32_t
+    | A.Bool   -> i1_t
+    | A.Float  -> float_t
+    | A.Void   -> void_t
+    | A.String -> str_t
   in
 
   (* Declare each global variable; remember its value in a map *)
@@ -107,6 +109,7 @@ let translate (globals, functions) =
 	SIntLit i -> L.const_int i32_t i
       | SBoolLit b -> L.const_int i1_t (if b then 1 else 0)
       | SFloatLit l -> L.const_float float_t l
+      | SStrLit s -> L.build_global_stringptr s "" builder
       | SNoexpr -> L.const_int i32_t 0
       | SId s -> L.build_load (lookup s) s builder
       | SBinop (e1, op, e2) ->
@@ -149,12 +152,12 @@ let translate (globals, functions) =
           | A.Not                  -> L.build_not) e' "tmp" builder
       | SAssign (s, e) -> let e' = expr builder e in
                           let _  = L.build_store e' (lookup s) builder in e'
-      | SCall ("printd", [e]) ->
+      | SCall ("print", [e]) ->
 	  L.build_call printf_func [| int_format_str ; (expr builder e) |]
-	    "printf" builder
-      | SCall ("print", [e]) -> 
+	    "print" builder
+      | SCall ("printstr", [e]) -> 
           L.build_call printf_func [| string_format_str ; (expr builder e) |]
-            "print" builder
+            "printstr" builder
       | SCall (f, act) ->
          let (fdef, fdecl) = StringMap.find f function_decls in
 	 let actuals = List.rev (List.map (expr builder) (List.rev act)) in

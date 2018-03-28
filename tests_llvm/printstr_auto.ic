@@ -1,0 +1,8 @@
+int main() {
+    printstr(hello());
+    return 0;
+}
+
+auto hello() {
+    return "Hello, world!";
+}
