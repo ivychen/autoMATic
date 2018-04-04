@@ -31,6 +31,7 @@ type expr =
 
 type stmt =
     Block of stmt list
+  | VDecl of typ * string * expr
   | Expr of expr
   | Return of expr
   | If of expr * stmt * stmt
@@ -41,7 +42,6 @@ type func_decl = {
     mutable typ : typ;
     fname : string;
     formals : bind list;
-    locals : bind list;
     body : stmt list;
   }
 
@@ -127,7 +127,6 @@ let string_of_fdecl fdecl =
   string_of_typ fdecl.typ ^ " " ^
   fdecl.fname ^ "(" ^ String.concat ", " (List.map snd fdecl.formals) ^
   ")\n{\n" ^
-  String.concat "" (List.map string_of_vdecl fdecl.locals) ^
   String.concat "" (List.map string_of_stmt fdecl.body) ^
   "}\n"
 

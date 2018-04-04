@@ -41,7 +41,7 @@ let check (globals, functions) =
     let add_bind map (name, argtypes, returntype) = StringMap.add name {
       typ = returntype; fname = name;
       formals = List.mapi (fun idx argtype -> (argtype, "x" ^ string_of_int idx)) argtypes;
-      locals = []; body = [] } map
+      body = [] } map
     in List.fold_left add_bind StringMap.empty [ ("printstr", [String], Void);
                                                  ("print", [Int], Void);
                                                  ("size", [Matrix], Matrix);
@@ -76,9 +76,8 @@ let check (globals, functions) =
   let _ = find_func "main" in (* Ensure "main" is defined *)
 
   let check_function_body func =
-    (* Make sure no formals or locals are void or duplicates *)
+    (* Make sure no formals are void or duplicates *)
     let formals' = check_binds "formal" func.formals in
-    let locals' = check_binds "local" func.locals in
 
     (* Raise an exception if the given rvalue type cannot be assigned to
        the given lvalue type *)
@@ -88,7 +87,7 @@ let check (globals, functions) =
 
     (* Build local symbol table of variables for this function *)
     let symbols = List.fold_left (fun m (ty, name) -> StringMap.add name ty m)
-	                StringMap.empty (globals' @ formals' @ locals' )
+	                StringMap.empty (globals' @ formals' )
     in
 
     (* Return a variable from our local symbol table *)
@@ -191,7 +190,6 @@ let check (globals, functions) =
     { styp = func.typ;
       sfname = func.fname;
       sformals = formals';
-      slocals  = locals';
       sbody = match check_stmt (Block func.body) with
 	SBlock(sl) -> sl
       | _ -> let err = "internal error: block didn't become a block?"
