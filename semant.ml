@@ -14,24 +14,34 @@ let check (globals, functions) =
 
   (* Check if a certain kind of binding has void type or is a duplicate
      of another, previously checked binding *)
+  let glob_symtbl = Hashtbl.create 20 in
   let check_binds (kind : string) (to_check : bind list) = 
-    let check_it checked binding = 
+    let check_it binding = 
       let void_err = "illegal void " ^ kind ^ " " ^ snd binding
       and dup_err = "duplicate " ^ kind ^ " " ^ snd binding
       in match binding with
         (* No void bindings *)
         (Void, _) -> raise (Failure void_err)
-      | (_, n1) -> match checked with
-                    (* No duplicate bindings *)
-                      ((_, n2) :: _) when n1 = n2 -> raise (Failure dup_err)
-                    | _ -> binding :: checked
-    in let _ = List.fold_left check_it [] (List.sort compare to_check) 
+      | (t, n1) -> (* No duplicate bindings *)
+                    if Hashtbl.mem glob_symtbl n1
+                    then raise (Failure dup_err)
+                    else let entry = {
+                        ty = t;
+                    }
+                    in Hashtbl.add glob_symtbl n1 entry
+    in let _ = List.iter check_it (List.sort compare to_check) 
        in to_check
   in 
 
   (**** Checking Global Variables ****)
-
   let globals' = check_binds "global" globals in
+
+  (* Create the global symtbl block that functions inherit from. *)
+  let glob_block = {
+      sparent = None;
+      symtbl = glob_symtbl;
+  }
+  in
 
   (**** Checking Functions ****)
 
@@ -75,7 +85,7 @@ let check (globals, functions) =
 
   let _ = find_func "main" in (* Ensure "main" is defined *)
 
-  let check_function_body func =
+  let check_function_body (pb : blockent) func =
     (* Make sure no formals are void or duplicates *)
     let formals' = check_binds "formal" func.formals in
 
@@ -83,19 +93,30 @@ let check (globals, functions) =
        the given lvalue type *)
     let check_assign lvaluet rvaluet err =
        if lvaluet = rvaluet then lvaluet else raise (Failure err)
-    in   
+    in
 
-    (* Build local symbol table of variables for this function *)
-    let symbols = List.fold_left (fun m (ty, name) -> StringMap.add name ty m)
-	                StringMap.empty (globals' @ formals' )
+    (* Add formal parameters to the symbol hashtable *)
+    let add_formal_to_symtbl (x : bind) =
+        let err = "formal " ^ (snd x) ^ " in func " ^ func.fname ^
+            "conflicts with a global variable binding"
+        and entry = {
+            ty = fst x;
+        }
+        in if Hashtbl.mem pb.symtbl (snd x)
+        then raise (Failure err)
+        else Hashtbl.add pb.symtbl (snd x) entry
+    in
+
+    let _ = List.iter add_formal_to_symtbl formals'
     in
 
     (* Return a variable from our local symbol table *)
     let type_of_identifier s =
-      try StringMap.find s symbols
-      with Not_found -> raise (Failure ("undeclared identifier " ^ s))
+      let entry = (if Hashtbl.mem pb.symtbl s
+                   then Hashtbl.find pb.symtbl s
+                   else raise (Failure ("undeclared identifier " ^ s)))
+      in entry.ty
     in
-
 
     (* Return a semantically-checked expression, i.e., with a type *)
     let rec expr = function
@@ -161,12 +182,19 @@ let check (globals, functions) =
     in
 
     (* Return a semantically-checked statement i.e. containing sexprs *)
-    let rec check_stmt = function
+    let rec check_stmt (blkinfo : blockent) = function
         Expr e -> SExpr (expr e)
-      | If(p, b1, b2) -> SIf(check_bool_expr p, check_stmt b1, check_stmt b2)
+      | VDecl(t, n, e) as st ->
+          let (et, e') = expr e in
+          let redecl_err = "conflicting variable declaration " ^ n ^ " in function " ^ func.fname
+          and type_err = "illegal variable instantiation " ^ string_of_typ t ^ " = " ^
+            string_of_typ et ^ " in " ^ string_of_stmt st in
+          let _ = if Hashtbl.mem pb.symtbl n then raise (Failure redecl_err) in
+          SVDecl((check_assign t et type_err), n, (et, e'))
+      | If(p, b1, b2) -> SIf(check_bool_expr p, check_stmt blkinfo b1, check_stmt blkinfo b2)
       | For(e1, e2, e3, st) ->
-	  SFor(expr e1, check_bool_expr e2, expr e3, check_stmt st)
-      | While(p, s) -> SWhile(check_bool_expr p, check_stmt s)
+	  SFor(expr e1, check_bool_expr e2, expr e3, check_stmt blkinfo st)
+      | While(p, s) -> SWhile(check_bool_expr p, check_stmt blkinfo s)
       | Return e -> let (t, e') = expr e in
         if func.typ = Auto then func.typ <- t;
         
@@ -179,24 +207,39 @@ let check (globals, functions) =
 	       follows any Return statement.  Nested blocks are flattened. *)
       | Block sl -> 
           let rec check_stmt_list = function
-              [Return _ as s] -> [check_stmt s]
+              [Return _ as s] -> [check_stmt blkinfo s]
             | Return _ :: _   -> raise (Failure "nothing may follow a return")
             | Block sl :: ss  -> check_stmt_list (sl @ ss) (* Flatten blocks *)
-            | s :: ss         -> check_stmt s :: check_stmt_list ss
+            | s :: ss         -> check_stmt blkinfo s :: check_stmt_list ss
             | []              -> []
-          in SBlock(check_stmt_list sl)
+          in let newblk = {
+            sparent = Some blkinfo;
+            symtbl = Hashtbl.copy blkinfo.symtbl;
+          }
+          in SBlock(check_stmt_list sl, newblk)
 
+    in let blk = check_stmt pb (Block func.body)
+    in let err = "internal error: block didn't become a block?"
+    in let get_block_sl b = match b with
+        SBlock(sl, _) -> sl
+      | _ -> raise (Failure err)
+    
+    in let get_block_bi b = match b with
+        SBlock(_, bi) -> bi
+      | _ -> raise (Failure err)
+    
     in (* body of check_function_body *)
     { styp = func.typ;
       sfname = func.fname;
       sformals = formals';
-      sbody = match check_stmt (Block func.body) with
-	SBlock(sl) -> sl
-      | _ -> let err = "internal error: block didn't become a block?"
-      in raise (Failure err)
+      sbody = get_block_sl blk;
+      sblockinfo = get_block_bi blk;
     }
 
-  (* TODO: write this function for preprocessing auto declarations *)
-  in let check_functions = check_function_body
-      
-  in (globals', List.map check_functions functions)
+  (* When checking function declarations, start symbol table hierarchy from the global block. *)
+  in let check_function x = check_function_body glob_block x
+
+  (* TODO: Use this for resolving types of any auto-decl functions *)
+  (*in let resolve_auto_decl = *)
+
+  in (globals', List.map check_function functions)

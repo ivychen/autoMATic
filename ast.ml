@@ -7,8 +7,6 @@ type uop = Neg | Not | Inc | Dec | Trans
 
 type typ = Int | Bool | Float | String | Matrix | Void | Auto
 
-type bind = typ * string
-
 type expr =
     IntLit of int
   | FloatLit of float
@@ -28,6 +26,8 @@ type expr =
   (* | ArrLit of expr list *)
   (* | ArrAccess of string * expr *)
   | Noexpr
+
+type bind = typ * string
 
 type stmt =
     Block of stmt list
@@ -98,6 +98,16 @@ let rec string_of_expr = function
       f ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
   | Noexpr -> ""
 
+let string_of_typ = function
+    Int -> "int"
+  | Bool -> "bool"
+  | Float -> "float"
+  | String -> "string"
+  | Matrix -> "matrix" (* @TODO Ivy: also output inferred matrix element type? *)
+  | Void -> "void"
+  | Auto -> "auto"
+  (* | Array -> "array" *)
+
 let rec string_of_stmt = function
     Block(stmts) ->
       "{\n" ^ String.concat "" (List.map string_of_stmt stmts) ^ "}\n"
@@ -110,16 +120,9 @@ let rec string_of_stmt = function
       "for (" ^ string_of_expr e1  ^ " ; " ^ string_of_expr e2 ^ " ; " ^
       string_of_expr e3  ^ ") " ^ string_of_stmt s
   | While(e, s) -> "while (" ^ string_of_expr e ^ ") " ^ string_of_stmt s
-
-let string_of_typ = function
-    Int -> "int"
-  | Bool -> "bool"
-  | Float -> "float"
-  | String -> "string"
-  | Matrix -> "matrix" (* @TODO Ivy: also output inferred matrix element type? *)
-  | Void -> "void"
-  | Auto -> "auto"
-  (* | Array -> "array" *)
+  | VDecl(t, n, e) ->
+      string_of_typ t ^ " " ^ n ^
+      (if e = Noexpr then "" else " = " ^ string_of_expr e) ^ ";\n"
 
 let string_of_vdecl (t, id) = string_of_typ t ^ " " ^ id ^ ";\n"
 
