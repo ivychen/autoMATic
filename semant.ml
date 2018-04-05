@@ -174,9 +174,7 @@ let check (globals, functions) =
     in
 
     (* Return a semantically-checked statement i.e. containing sexprs *)
-    let rec check_stmt (blk : blockent) x =
-        let _ = print_string ((string_of_stmt x) ^ "\n\n") in
-        match x with
+    let rec check_stmt (blk : blockent) = function
         Expr e -> SExpr (expr blk e)
       | VDecl(t, n, e) as st ->
           let (et, e') = expr blk e in
@@ -218,9 +216,9 @@ let check (globals, functions) =
               [Return _ as s] -> [check_stmt blk s]
             | Return _ :: _   -> raise (Failure "nothing may follow a return")
             | Block sl :: ss  -> check_stmt_list (sl @ ss) (* Flatten blocks *)
-            | s :: ss         -> check_stmt blk s :: check_stmt_list ss
+            | s :: ss         -> check_stmt_list ss @ [check_stmt blk s]
             | []              -> []
-          in SBlock(check_stmt_list sl, blk)
+          in SBlock(List.rev (check_stmt_list sl), blk)
 
     in let blk = check_stmt funblk (Block func.body)
        and err = "internal error: block didn't become a block?"

@@ -80,27 +80,26 @@ let translate (globals, functions) =
      * resulting registers to our map *)
     let add_local m (t, n) =
       let local_var = L.build_alloca (ltype_of_typ t) n builder
-      in StringMap.add n local_var m 
+      in Hashtbl.add m n local_var
     in
 
     (* Construct the function's "locals": formal arguments and locally
        declared variables.  Allocate each on the stack, initialize their
        value, if appropriate, and remember their values in the "locals" map *)
-    let local_vars =
-      let add_formal m (t, n) p = 
-        let () = L.set_value_name n p in
-	let local = L.build_alloca (ltype_of_typ t) n builder in
-        let _  = L.build_store p local builder in
-	StringMap.add n local m 
-      in
-
-      List.fold_left2 add_formal StringMap.empty fdecl.sformals
-          (Array.to_list (L.params the_function))
+    let local_vars = Hashtbl.create 10
+    in let add_formal m (t, n) p = 
+      let () = L.set_value_name n p in
+      let local = L.build_alloca (ltype_of_typ t) n builder in
+      let _  = L.build_store p local builder in
+      Hashtbl.add m n local
+    in
+    let add_formal_to_locals x y = add_formal local_vars x y
+    in let _ = List.iter2 add_formal_to_locals fdecl.sformals (Array.to_list (L.params the_function))
     in
 
     (* Return the value for a variable or formal argument. First check
      * locals, then globals *)
-    let lookup n = try StringMap.find n local_vars
+    let lookup n = try Hashtbl.find local_vars n
                    with Not_found -> StringMap.find n global_vars
     in
 
