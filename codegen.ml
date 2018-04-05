@@ -196,7 +196,9 @@ let translate (globals, functions) =
         (* Generate code for this expression, return resulting builder *)
       | SVDecl (t, n, e) ->
           let _ = add_local local_vars (t, n) in
-          let _ = (expr builder (t, SAssign(n, e)))
+          let _ = if (snd e) != SNoexpr
+                  then (expr builder (t, SAssign(n, e)))
+                  else (expr builder (t, SNoexpr))
           in builder
       | SExpr e -> let _ = expr builder e in builder 
       | SReturn e -> let _ = match fdecl.styp with
