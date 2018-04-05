@@ -1,0 +1,10 @@
+int main() {
+    auto x = 5;
+    auto y = "a string";
+
+    print(5);
+    printstr(y);
+
+    y = "another string";
+    printstr(y);
+}

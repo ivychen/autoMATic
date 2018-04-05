@@ -1,0 +1,14 @@
+int main() {
+    // These two "x" vars are in different blocks and therefore different
+    // scopes. Should not conflict.
+    {
+        int x = 4;
+        print(x);
+    }
+    {
+        int x = 7;
+        print(x);
+    }
+
+    return 0;
+}
