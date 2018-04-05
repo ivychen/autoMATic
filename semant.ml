@@ -219,7 +219,12 @@ let check (globals, functions) =
           let rec check_stmt_list = function
               [Return _ as s] -> [check_stmt blk s]
             | Return _ :: _   -> raise (Failure "nothing may follow a return")
-            | Block sl :: ss  -> check_stmt_list (sl @ ss) (* Flatten blocks *)
+            | Block sl :: ss  ->
+                let child_blk = {
+                  sparent = Some blk;
+                  symtbl = Hashtbl.copy blk.symtbl;
+                }
+                in check_stmt_list ss @ [check_stmt child_blk (Block sl)]
             | s :: ss         -> check_stmt_list ss @ [check_stmt blk s]
             | []              -> []
           in SBlock(List.rev (check_stmt_list sl), blk)
@@ -244,6 +249,6 @@ let check (globals, functions) =
     }
 
   (* TODO: Use this for resolving types of any auto-decl functions *)
-  (*in let resolve_auto_decl = *)
+  in let functions' = functions
 
-  in (globals', List.map check_function_body functions)
+  in (globals', List.map check_function_body functions')
