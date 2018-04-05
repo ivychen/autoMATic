@@ -10,7 +10,7 @@ all : automatic.native
 .PHONY : automatic.native
 automatic.native :
 	rm -f *.o
-	ocamlbuild -use-ocamlfind -pkgs llvm,llvm.analysis -cflags -w,+a-4 \
+	ocamlbuild -use-ocamlfind -pkgs llvm,llvm.analysis -cflags -g,-w,+a-4 \
 		automatic.native
 
 # "make clean" removes all generated files
@@ -35,10 +35,10 @@ parser.ml parser.mli : parser.mly
 	ocamlyacc parser.mly
 
 %.cmo : %.ml
-	ocamlc -c $<
+	ocamlc -g -c $<
 
 %.cmi : %.mli
-	ocamlc -c $<
+	ocamlc -g -c $<
 
 %.cmx : %.ml
 	ocamlfind ocamlopt -c -package llvm $<
