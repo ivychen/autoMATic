@@ -8,13 +8,13 @@
 #  Compile and check the error of each expected-to-fail test
 
 # Path to the LLVM interpreter
-LLI="lli"
+LLI="lli-5.0"
 
 # Path to the LLVM compiler
-LLC="llc"
+LLC="llc-5.0"
 
 # Path to the C compiler
-CC="cc"
+CC="gcc"
 
 # Path to the autoMATic compiler.  Usually "./automatic.native"
 # Try "_build/automatic.native" if ocamlbuild was unable to create a symbolic link.
@@ -53,6 +53,7 @@ Compare() {
     diff -b "$1" "$2" > "$3" 2>&1 || {
 	SignalError "$1 differs"
 	echo "FAILED $1 differs from $2" 1>&2
+	diff -b "$1" "$2" 2>&1
     }
 }
 
@@ -93,8 +94,8 @@ Check() {
 
     generatedfiles="$generatedfiles ${basename}.ll ${basename}.s ${basename}.exe ${basename}.out" &&
     Run "$MICROC" "$1" ">" "${basename}.ll" &&
-    Run "$LLC" "${basename}.ll" ">" "${basename}.s" &&
-    Run "$CC" "-o" "${basename}.exe" "${basename}.s" "printbig.o" &&
+    Run "$LLC" -relocation-model=pic "${basename}.ll" ">" "${basename}.s" &&
+    Run "$CC" "-o" "${basename}.exe" "${basename}.s" &&
     Run "./${basename}.exe" > "${basename}.out" &&
     Compare ${basename}.out ${reffile}.out ${basename}.diff
 
