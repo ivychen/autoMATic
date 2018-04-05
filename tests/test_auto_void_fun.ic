@@ -1,0 +1,8 @@
+auto func() {
+    printstr("func is a void-returning function");
+}
+
+int main() {
+    func();
+    return 0;
+}

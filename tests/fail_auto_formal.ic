@@ -1,0 +1,8 @@
+void func(auto x) {
+    print(x);
+}
+
+int main() {
+    func(42);
+    return 0;
+}
