@@ -19,9 +19,12 @@ let check (globals, functions) =
     let check_it binding = 
       let void_err = "illegal void " ^ kind ^ " " ^ snd binding
       and dup_err = "duplicate " ^ kind ^ " " ^ snd binding
+      and auto_err = "illegal auto " ^ kind ^ " " ^ snd binding
       in match binding with
         (* No void bindings *)
         (Void, _) -> raise (Failure void_err)
+        (* No auto bindings *)
+      | (Auto, _) -> raise (Failure auto_err)
       | (t, n1) -> (* No duplicate bindings *)
                     if Hashtbl.mem tbl n1
                     then raise (Failure dup_err)
@@ -157,10 +160,13 @@ let check (globals, functions) =
           if List.length args != param_length then
             raise (Failure ("expecting " ^ string_of_int param_length ^ 
                             " arguments in " ^ string_of_expr call))
-          else let check_call (ft, _) e = 
+          else let check_call (ft, n) e = 
             let (et, e') = expr blk e in 
             let err = "illegal argument found " ^ string_of_typ et ^
-              " expected " ^ string_of_typ ft ^ " in " ^ string_of_expr e
+              " expected " ^ string_of_typ ft ^ " in " ^ string_of_expr e in
+            let auto_err = "function " ^ fname ^
+              " has illegal auto-declared parameter " ^ n 
+            in let _ = if ft = Auto then raise (Failure auto_err)
             in (check_assign ft et err, e')
           in 
           let args' = List.map2 check_call fd.formals args
