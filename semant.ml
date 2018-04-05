@@ -183,8 +183,15 @@ let check (globals, functions) =
             string_of_typ et ^ " in " ^ string_of_stmt st ^ " in function " ^ func.fname
           and auto_err = "declared auto variable without initializer in " ^
             string_of_stmt st ^ " in function " ^ func.fname
+
+          in let _ = if t = Auto && e = Noexpr
+                     then raise (Failure auto_err)
+
+          in let t' = if t = Auto then et
+                      else t
+
           in let entry = {
-            ty = t;
+            ty = t';
           }
           in
           let _ = if Hashtbl.mem blk.symtbl n
@@ -192,11 +199,8 @@ let check (globals, functions) =
                   else Hashtbl.add blk.symtbl n entry
           in
           if e' = SNoexpr
-          then (if t = Auto
-                then raise (Failure auto_err)
-                else SVDecl(t, n, (et, e')))
-          else let t' = (if t = Auto then et else t)
-               in SVDecl((check_assign t' et type_err), n, (et, e'))
+          then SVDecl(t', n, (et, e'))
+          else SVDecl((check_assign t' et type_err), n, (et, e'))
       | If(p, b1, b2) -> SIf(check_bool_expr blk p, check_stmt blk b1, check_stmt blk b2)
       | For(e1, e2, e3, st) ->
 	  SFor(expr blk e1, check_bool_expr blk e2, expr blk e3, check_stmt blk st)
