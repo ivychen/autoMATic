@@ -7,5 +7,6 @@ int main() {
 auto test() {
     int x;
     x = 4;
-    return x;
+    int y = 3;
+    return x + y;
 }

@@ -1,0 +1,6 @@
+int x;
+
+int main() {
+    x = 123;
+    print(123);
+}

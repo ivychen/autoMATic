@@ -1,0 +1,8 @@
+int main() {
+    test(1, 2);
+}
+
+void test(int x, int y) {
+    int x = 4; // ERR: redeclaration of formal "x"
+    print(x + y);
+}
