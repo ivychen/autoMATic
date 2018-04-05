@@ -1,6 +1,7 @@
 // Euclid's GCD Algorithm
 
 int GCD(int a, int b) {
+	int c = 0;
 	int c;
 	while (a > 0) {
 		c = b % a;
@@ -8,4 +9,11 @@ int GCD(int a, int b) {
 		a = c;
 	}
 	return b;
+}
+
+int main() {
+    print(GCD(4, 8)); // 4
+    print(GCD(2, 7)); // 1
+    print(GCD(0, 0)); // 0
+    print(GCD(1048026, 924)); // 42
 }
