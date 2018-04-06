@@ -19,9 +19,12 @@ let check (globals, functions) =
     let check_it binding = 
       let void_err = "illegal void " ^ kind ^ " " ^ snd binding
       and dup_err = "duplicate " ^ kind ^ " " ^ snd binding
+      and auto_err = "illegal auto " ^ kind ^ " " ^ snd binding
       in match binding with
         (* No void bindings *)
         (Void, _) -> raise (Failure void_err)
+        (* No auto bindings *)
+      | (Auto, _) -> raise (Failure auto_err)
       | (t, n1) -> (* No duplicate bindings *)
                     if Hashtbl.mem tbl n1
                     then raise (Failure dup_err)
@@ -85,7 +88,7 @@ let check (globals, functions) =
 
   let _ = find_func "main" in (* Ensure "main" is defined *)
 
-  let check_function_body func =
+  let rec check_function (func : func_decl) : sfunc_decl =
     (* Create a new block for this function *)
     let funblk = {
       sparent = Some glob_block;
@@ -153,14 +156,18 @@ let check (globals, functions) =
           in (ty, SBinop((t1, e1'), op, (t2, e2')))
       | Call(fname, args) as call -> 
           let fd = find_func fname in
+          let _ = (if fd.typ = Auto then (let _ = check_function fd in fd) else fd) in
           let param_length = List.length fd.formals in
           if List.length args != param_length then
             raise (Failure ("expecting " ^ string_of_int param_length ^ 
                             " arguments in " ^ string_of_expr call))
-          else let check_call (ft, _) e = 
+          else let check_call (ft, n) e = 
             let (et, e') = expr blk e in 
             let err = "illegal argument found " ^ string_of_typ et ^
-              " expected " ^ string_of_typ ft ^ " in " ^ string_of_expr e
+              " expected " ^ string_of_typ ft ^ " in " ^ string_of_expr e in
+            let auto_err = "function " ^ fname ^
+              " has illegal auto-declared parameter " ^ n 
+            in let _ = if ft = Auto then raise (Failure auto_err)
             in (check_assign ft et err, e')
           in 
           let args' = List.map2 check_call fd.formals args
@@ -207,7 +214,7 @@ let check (globals, functions) =
       | While(p, s) -> SWhile(check_bool_expr blk p, check_stmt blk s)
       | Return e -> let (t, e') = expr blk e in
         if func.typ = Auto then func.typ <- t;
-        
+
         if t = func.typ then SReturn (func.typ, e') 
         else raise (
 	  Failure ("return gives " ^ string_of_typ t ^ " expected " ^
@@ -239,8 +246,10 @@ let check (globals, functions) =
     and get_block_bi b = match b with
         SBlock(_, bi) -> bi
       | _ -> raise (Failure err)
+
+    in let _ = (if func.typ = Auto then func.typ <- Void);
     
-    in (* body of check_function_body *)
+    in (* body of check_function *)
     { styp = func.typ;
       sfname = func.fname;
       sformals = formals';
@@ -248,7 +257,4 @@ let check (globals, functions) =
       sblockinfo = get_block_bi blk;
     }
 
-  (* TODO: Use this for resolving types of any auto-decl functions *)
-  in let functions' = functions
-
-  in (globals', List.map check_function_body functions')
+  in (globals', List.map check_function functions)
