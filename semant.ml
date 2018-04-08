@@ -159,12 +159,12 @@ let check (globals, functions) =
         (* Check matrix elements and construct list of sexpr *)
         let check_mat_elem ls elem =
           (* Semantically check list elements *)
-          let selem = expr (blk elem) in
+          let selem = expr blk elem in
           match ls with
-              []        ->  (List.append l [selem])
+              []        ->  (List.append ls [selem])
             | hd :: _   ->  let ty1 = fst (hd) in
                             let ty2 = fst (selem) in
-                            if ty1 != ty2 then raise (Failure("Matrix element types are inconsistent: " ^ string_of_typ ty1 ^ " with " ^ string_of_typ ty2)) else (List.append l [selem])
+                            if ty1 != ty2 then raise (Failure("Matrix element types are inconsistent: " ^ string_of_typ ty1 ^ " with " ^ string_of_typ ty2)) else (List.append ls [selem])
           in
         (* Check matrix rows, add to matrix *)
         let check_mat_rows mtx ls =
@@ -174,10 +174,10 @@ let check (globals, functions) =
               []      ->  (List.append mtx [sls])
             | [] :: _ ->
                 if List.length sls = 0
-                then List.append mtx [sls] else raise(Failure("Matrices may not be jagged in " ^ string_of_expr m))
+                then List.append mtx [sls] else raise(Failure("Matrices may not be jagged in " ^ string_of_expr mat))
             | (hd :: _) :: _  ->
                 if List.length (List.hd mtx) != List.length sls
-                then raise(Failure("Matrices may not be jagged in " ^ string_of_expr m))
+                then raise(Failure("Matrices may not be jagged in " ^ string_of_expr mat))
                 else
                   let ty1 = fst (hd) in
                     let ty2 = fst (List.hd sls) in
@@ -191,21 +191,23 @@ let check (globals, functions) =
           let mty = fst (List.hd (List.hd smat)) in
           if mty != Int && mty != Float && mty != Bool
           then raise(Failure("Matrix elements must be of type Int, Bool or Float"))
-          else SMatLit(mty, smat)
+          else (mty, SMatLit(smat))
       | MatAccess(s,e1,e2) as ex ->
           let se1 = expr blk e1 in
           let se2 = expr blk e2 in
           let ty = type_of_identifier s blk.symtbl in
-          match ty with
-              Matrix  ->  SMatAccess(ty, s, e1, e2)
-            | _       ->  raise(Failure("Cannot access elements of non-matrix type in " ^ string_of_expr ex))
+          (match ty with
+              Matrix  ->  (ty, SMatAccess(s, se1, se2))
+            | _       ->  raise(Failure("Cannot access elements of non-matrix type in " ^ string_of_expr ex)))
+
       | MatAssign(s,e1,e2,e3) as ex ->
           let se1 = expr blk e1 in
           let se2 = expr blk e2 in
           let se3 = expr blk e3 in
           let ty = type_of_identifier s blk.symtbl in
-          match ty with
-              Matrix  -> SMatAssign(ty, )
+          (match ty with
+              Matrix  -> (ty, SMatAssign(s, se1, se2, se3))
+            | _       ->  raise(Failure("Cannot assign incompatible element in " ^ string_of_expr ex)))
 
       | Call(fname, args) as call ->
           let fd = find_func fname in
