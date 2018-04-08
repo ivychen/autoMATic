@@ -24,6 +24,7 @@ and sx =
 
 type symtbl_entry = {
     ty : typ;
+    ety : typ option;
     (* reserved for qualifiers *)
   }
 
@@ -52,7 +53,6 @@ type sfunc_decl = {
 type sprogram = bind list * sfunc_decl list
 
 (* Pretty-printing functions *)
-
 let rec string_of_sexpr (t, e) =
   "(" ^ string_of_typ t ^ " : " ^ (match e with
     SIntLit(l) -> string_of_int l
@@ -67,6 +67,8 @@ let rec string_of_sexpr (t, e) =
   | SAssign(v, e) -> v ^ " = " ^ string_of_sexpr e
   | SCall(f, el) ->
       f ^ "(" ^ String.concat ", " (List.map string_of_sexpr el) ^ ")"
+  (* Matrices: print out the matrix/expression as well as type of element
+     formatted like: matrix m .... : ELEMTYPE int*)
   | SMatLit(ell) ->
       "[" ^ String.concat ", " (List.map (fun el ->
       "[" ^ String.concat ", " (List.map string_of_sexpr el)) ell) ^ "]"
@@ -75,6 +77,7 @@ let rec string_of_sexpr (t, e) =
   | SMatAssign(s, e1, e2, e3) ->
       s ^ "[" ^ string_of_sexpr e1 ^ "][" ^ string_of_sexpr e2 ^ "] = " ^
       string_of_sexpr e3
+      (* ^ " : ELEMTYPE " ^ string_of_typ ty *)
   (* | SArrLit(el) ->
       "{" ^ String.concat ", " (List.map string_of_sexpr el) ^ "}"
   | SArrAccess(s, e) ->

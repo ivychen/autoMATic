@@ -5,7 +5,7 @@ type op = Add | Sub | Mult | Exp | ElemMult | Div | ElemDiv | Mod | Equal | Neq
 
 type uop = Neg | Not | Inc | Dec | Trans
 
-type typ = Int | Bool | Float | String | Matrix | Void | Auto
+type typ = Int | Bool | Float | String | Void | Auto | Matrix | TMatrix of typ
 
 type expr =
     IntLit of int
@@ -98,12 +98,13 @@ let rec string_of_expr = function
       f ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
   | Noexpr -> ""
 
-let string_of_typ = function
+let rec string_of_typ = function
     Int -> "int"
   | Bool -> "bool"
   | Float -> "float"
   | String -> "string"
-  | Matrix -> "matrix" (* @TODO Ivy: also output inferred matrix element type? *)
+  | Matrix -> "matrix"
+  | TMatrix(t) -> string_of_typ t ^ " matrix"
   | Void -> "void"
   | Auto -> "auto"
   (* | Array -> "array" *)

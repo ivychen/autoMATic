@@ -30,6 +30,7 @@ let check (globals, functions) =
                     then raise (Failure dup_err)
                     else let entry = {
                         ty = t;
+                        ety = None;
                     }
                     in Hashtbl.add tbl n1 entry
     in let _ = List.iter check_it (List.sort compare to_check)
@@ -101,7 +102,22 @@ let check (globals, functions) =
     (* Raise an exception if the given rvalue type cannot be assigned to
        the given lvalue type *)
     let check_assign lvaluet rvaluet err =
-       if lvaluet = rvaluet then lvaluet else raise (Failure err)
+       let is_mat m = match m with
+          Matrix -> true
+       |  _ -> false
+       in
+       let is_matt m = match m with
+          TMatrix(_) -> true
+       |  _ -> false
+       in
+       let mat_elemt m = match m with
+         TMatrix(t) -> t
+       | _ -> raise(Failure err)
+       in
+       if (is_mat lvaluet) && (is_mat rvaluet || is_matt rvaluet) then rvaluet
+       else if is_matt lvaluet && ((mat_elemt lvaluet) = rvaluet) then lvaluet
+       else if is_matt rvaluet && ((mat_elemt rvaluet) = lvaluet) then lvaluet
+       else if lvaluet = rvaluet then lvaluet else raise (Failure err)
     in
 
     (* Return a variable from our local symbol table *)
@@ -123,9 +139,29 @@ let check (globals, functions) =
       | Assign(var, e) as ex ->
           let lt = type_of_identifier var blk.symtbl
           and (rt, e') = expr blk e in
+          (* If matrix type, use type of matrix element to check *)
+          let is_mat =
+            match rt with
+              TMatrix(_) | Matrix -> true
+            | _ -> false
+          in
+          (* Element type *)
+          let ety =
+            match rt with
+              TMatrix(t) -> t
+            | _ -> rt
+          in
+          (* Matrix right type *)
+          let mrt =
+            (*  If matrix, extract the matrix element type *)
+            match e' with
+              SMatLit(_) -> TMatrix(ety)
+            | SMatAccess(_, _, _) | SMatAssign(_, _, _, _) when is_mat -> ety
+            | _ -> rt
+          in
           let err = "illegal assignment " ^ string_of_typ lt ^ " = " ^
-            string_of_typ rt ^ " in " ^ string_of_expr ex
-          in (check_assign lt rt err, SAssign(var, (rt, e')))
+            string_of_typ (if is_mat then mrt else rt) ^ " in " ^ string_of_expr ex
+          in (check_assign lt (if is_mat then mrt else rt) err, SAssign(var, ((if is_mat then mrt else rt), e')))
       | Unop(op, e) as ex ->
           let (t, e') = expr blk e in
           let ty = match op with
@@ -164,7 +200,7 @@ let check (globals, functions) =
               []        ->  (List.append ls [selem])
             | hd :: _   ->  let ty1 = fst (hd) in
                             let ty2 = fst (selem) in
-                            if ty1 != ty2 then raise (Failure("Matrix element types are inconsistent: " ^ string_of_typ ty1 ^ " with " ^ string_of_typ ty2)) else (List.append ls [selem])
+                            if ty1 != ty2 then raise (Failure("Matrix element types are inconsistent: " ^ string_of_typ ty1 ^ " with " ^ string_of_typ ty2 ^ " in " ^ string_of_expr mat)) else (List.append ls [selem])
           in
         (* Check matrix rows, add to matrix *)
         let check_mat_rows mtx ls =
@@ -182,7 +218,7 @@ let check (globals, functions) =
                   let ty1 = fst (hd) in
                     let ty2 = fst (List.hd sls) in
                     if ty1 != ty2
-                    then raise (Failure("Matrix element types are inconsistent: " ^ string_of_typ ty1 ^ " with " ^ string_of_typ ty2))
+                    then raise (Failure("Matrix element types are inconsistent: " ^ string_of_typ ty1 ^ " with " ^ string_of_typ ty2 ^ " in " ^ string_of_expr mat))
                     else (List.append mtx [sls])
             in
           (* Semantically checked matrix *)
@@ -191,14 +227,14 @@ let check (globals, functions) =
           let mty = fst (List.hd (List.hd smat)) in
           if mty != Int && mty != Float && mty != Bool
           then raise(Failure("Matrix elements must be of type Int, Bool or Float"))
-          else (mty, SMatLit(smat))
+          else (TMatrix(mty), SMatLit(smat))
       | MatAccess(s,e1,e2) as ex ->
           let se1 = expr blk e1 in
           let se2 = expr blk e2 in
           let ty = type_of_identifier s blk.symtbl in
           (match ty with
-              Matrix  ->  (ty, SMatAccess(s, se1, se2))
-            | _       ->  raise(Failure("Cannot access elements of non-matrix type in " ^ string_of_expr ex)))
+              TMatrix(ty)  ->  (TMatrix(ty), SMatAccess(s, se1, se2))
+            | _       ->  raise(Failure("Cannot access elements of non-matrix type " ^ string_of_typ ty ^ " in " ^ string_of_expr ex)))
 
       | MatAssign(s,e1,e2,e3) as ex ->
           let se1 = expr blk e1 in
@@ -206,8 +242,8 @@ let check (globals, functions) =
           let se3 = expr blk e3 in
           let ty = type_of_identifier s blk.symtbl in
           (match ty with
-              Matrix  -> (ty, SMatAssign(s, se1, se2, se3))
-            | _       ->  raise(Failure("Cannot assign incompatible element in " ^ string_of_expr ex)))
+              TMatrix(ty)  -> (TMatrix(ty), SMatAssign(s, se1, se2, se3))
+            | _       ->  raise(Failure("Cannot assign incompatible element of " ^ string_of_typ ty ^ " in " ^ string_of_expr ex)))
 
       | Call(fname, args) as call ->
           let fd = find_func fname in
@@ -254,6 +290,7 @@ let check (globals, functions) =
 
           in let entry = {
             ty = t';
+            ety = None;
           }
           in
           let _ = if Hashtbl.mem blk.symtbl n
