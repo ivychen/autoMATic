@@ -18,8 +18,8 @@ and sx =
   | SMatAccess of string * sexpr * sexpr
   | SMatAssign of string * sexpr * sexpr * sexpr
   (*  | ArrLit of expr list *)
-  | SArrLit of sexpr list
-  | SArrAccess of string * sexpr
+  (* | SArrLit of sexpr list
+  | SArrAccess of string * sexpr *)
   | SNoexpr
 
 type sstmt =
@@ -64,12 +64,12 @@ let rec string_of_sexpr (t, e) =
   | SMatAssign(s, e1, e2, e3) ->
       s ^ "[" ^ string_of_sexpr e1 ^ "][" ^ string_of_sexpr e2 ^ "] = " ^
       string_of_sexpr e3
-  | SArrLit(el) -> 
+  (* | SArrLit(el) ->
       "{" ^ String.concat ", " (List.map string_of_sexpr el) ^ "}"
-  | SArrAccess(s, e) -> 
-      s ^ "[" ^ string_of_sexpr e ^ "]"
+  | SArrAccess(s, e) ->
+      s ^ "[" ^ string_of_sexpr e ^ "]" *)
   | SNoexpr -> ""
-				  ) ^ ")"				     
+				  ) ^ ")"
 
 let rec string_of_sstmt = function
     SBlock(stmts) ->
