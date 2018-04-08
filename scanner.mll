@@ -59,6 +59,7 @@ rule token = parse
 | "string" { STRING }
 | "void"   { VOID }
 | "auto"   { AUTO }
+| "fun"    { AUTO }
 (* "array"  { ARRAY } *)
 (* ---------- LITERALS -----------*)
 | "true"   { TRUE }

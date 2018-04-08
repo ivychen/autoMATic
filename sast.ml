@@ -22,8 +22,19 @@ and sx =
   | SArrAccess of string * sexpr *)
   | SNoexpr
 
+type symtbl_entry = {
+    ty : typ;
+    (* reserved for qualifiers *)
+  }
+
+type blockent = {
+    sparent : blockent option;
+    symtbl  : (string, symtbl_entry) Hashtbl.t;
+  }
+
 type sstmt =
-    SBlock of sstmt list
+    SBlock of sstmt list * blockent
+  | SVDecl of typ * string * sexpr
   | SExpr of sexpr
   | SReturn of sexpr
   | SIf of sexpr * sstmt * sstmt
@@ -34,7 +45,7 @@ type sfunc_decl = {
     styp : typ;
     sfname : string;
     sformals : bind list;
-    slocals : bind list;
+    sblockinfo : blockent;
     sbody : sstmt list;
   }
 
@@ -72,11 +83,11 @@ let rec string_of_sexpr (t, e) =
 				  ) ^ ")"
 
 let rec string_of_sstmt = function
-    SBlock(stmts) ->
+    SBlock(stmts, _) ->
       "{\n" ^ String.concat "" (List.map string_of_sstmt stmts) ^ "}\n"
   | SExpr(expr) -> string_of_sexpr expr ^ ";\n";
   | SReturn(expr) -> "return " ^ string_of_sexpr expr ^ ";\n";
-  | SIf(e, s, SBlock([])) ->
+  | SIf(e, s, SBlock([], _)) ->
       "if (" ^ string_of_sexpr e ^ ")\n" ^ string_of_sstmt s
   | SIf(e, s1, s2) ->  "if (" ^ string_of_sexpr e ^ ")\n" ^
       string_of_sstmt s1 ^ "else\n" ^ string_of_sstmt s2
@@ -84,12 +95,14 @@ let rec string_of_sstmt = function
       "for (" ^ string_of_sexpr e1  ^ " ; " ^ string_of_sexpr e2 ^ " ; " ^
       string_of_sexpr e3  ^ ") " ^ string_of_sstmt s
   | SWhile(e, s) -> "while (" ^ string_of_sexpr e ^ ") " ^ string_of_sstmt s
+  | SVDecl(t, n, e) ->
+      string_of_typ t ^ " " ^ n ^
+      (if (snd e) = SNoexpr then "" else " = " ^ string_of_sexpr e) ^ ";\n"
 
 let string_of_sfdecl fdecl =
   string_of_typ fdecl.styp ^ " " ^
   fdecl.sfname ^ "(" ^ String.concat ", " (List.map snd fdecl.sformals) ^
   ")\n{\n" ^
-  String.concat "" (List.map string_of_vdecl fdecl.slocals) ^
   String.concat "" (List.map string_of_sstmt fdecl.sbody) ^
   "}\n"
 

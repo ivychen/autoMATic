@@ -1,0 +1,16 @@
+auto print_str(string s) {
+    printstr(s);
+}
+
+auto main() {
+    auto str = "test string";
+    print_str(str);
+    print(print_num(360));
+
+    return 0;
+}
+
+auto print_num(int x) {
+    print(x);
+    return 50;
+}
