@@ -1,5 +1,5 @@
 // Test matrix access and assignment
-void accessMat(matrix M) {
+void accessMat(int matrix M) {
 	int a;
 
 	a = M[1][1];
@@ -8,6 +8,6 @@ void accessMat(matrix M) {
 }
 
 int main() {
-  matrix M;
+  int matrix[3][3] M;
   M = [[0,0,0]; [0,0,0]; [0,0,0]];
 }

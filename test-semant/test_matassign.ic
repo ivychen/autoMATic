@@ -1,5 +1,5 @@
 // Test matrix element assignment
-void asnMat(matrix M) {
+void asnMat(int matrix M) {
 	int c;
 	c = 5;
 
@@ -9,6 +9,6 @@ void asnMat(matrix M) {
 }
 
 int main() {
-    matrix M;
+    int matrix[3][3] M;
     M = [[0,0,0]; [0,0,0]; [0,0,0]];
 }
