@@ -24,6 +24,7 @@ and sx =
 
 type symtbl_entry = {
     ty : typ;
+    (* ety: element type field for matrices *)
     ety : typ option;
     (* reserved for qualifiers *)
   }

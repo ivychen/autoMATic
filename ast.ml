@@ -5,7 +5,14 @@ type op = Add | Sub | Mult | Exp | ElemMult | Div | ElemDiv | Mod | Equal | Neq
 
 type uop = Neg | Not | Inc | Dec | Trans
 
-type typ = Int | Bool | Float | String | Void | Auto | Matrix | TMatrix of typ
+(* type typ = Int | Bool | Float | String | Void | Auto | Matrix *)
+type primitive = Int | Bool | Float | String | Void
+
+type typ =
+    Matrix of primitive * int * int
+  | Auto
+  | DataType of primitive
+  | MatrixRet of primitive
 
 type expr =
     IntLit of int
@@ -98,14 +105,33 @@ let rec string_of_expr = function
       f ^ "(" ^ String.concat ", " (List.map string_of_expr el) ^ ")"
   | Noexpr -> ""
 
-let rec string_of_typ = function
-    Int -> "int"
+let string_of_typ = function
+    (* Int -> "int"
   | Bool -> "bool"
   | Float -> "float"
   | String -> "string"
   | Matrix -> "matrix"
   | TMatrix(t) -> string_of_typ t ^ " matrix"
-  | Void -> "void"
+  | Void -> "void" *)
+    DataType(Int)     -> "int"
+  | DataType(Float)   -> "float"
+  | DataType(String)  -> "string"
+  | DataType(Bool)    -> "bool"
+  | DataType(Void)    -> "void"
+  | Matrix(t, r, c)   -> (match t with
+        Int   -> "int matrix (r:" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
+      | Float -> "float matrix" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
+      | Bool  -> "bool matrix" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
+      | String -> "string matrix" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
+      | Void  -> "void matrix" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
+    )
+  | MatrixRet(t)  -> (match t with
+        Int   -> "int matrix"
+      | Float -> "float matrix"
+      | Bool  -> "bool matrix"
+      | String -> "string matrix"
+      | Void  -> "void matrix"
+    )
   | Auto -> "auto"
   (* | Array -> "array" *)
 

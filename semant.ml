@@ -102,7 +102,7 @@ let check (globals, functions) =
     (* Raise an exception if the given rvalue type cannot be assigned to
        the given lvalue type *)
     let check_assign lvaluet rvaluet err =
-       let is_mat m = match m with
+       (* let is_mat m = match m with
           Matrix -> true
        |  _ -> false
        in
@@ -116,8 +116,9 @@ let check (globals, functions) =
        in
        if (is_mat lvaluet) && (is_mat rvaluet || is_matt rvaluet) then rvaluet
        else if is_matt lvaluet && ((mat_elemt lvaluet) = rvaluet) then lvaluet
-       else if is_matt rvaluet && ((mat_elemt rvaluet) = lvaluet) then lvaluet
-       else if lvaluet = rvaluet then lvaluet else raise (Failure err)
+       else if is_matt rvaluet && ((mat_elemt rvaluet) = lvaluet) then lvaluet *)
+       (* else  *)
+       if lvaluet = rvaluet then lvaluet else raise (Failure err)
     in
 
     (* Return a variable from our local symbol table *)
@@ -140,13 +141,18 @@ let check (globals, functions) =
           let lt = type_of_identifier var blk.symtbl
           and (rt, e') = expr blk e in
           (* If matrix type, use type of matrix element to check *)
-          let is_mat =
-            match rt with
-              TMatrix(_) | Matrix -> true
+          let is_mat m =
+            match m with
+              Matrix -> true
             | _ -> false
           in
-          (* Element type *)
-          let ety =
+          let is_matt m =
+            match m with
+              TMatrix(_) -> true
+            | _ -> false
+          in
+          (* Element type if TMatrix *)
+          let ety' =
             match rt with
               TMatrix(t) -> t
             | _ -> rt
@@ -156,12 +162,26 @@ let check (globals, functions) =
             (*  If matrix, extract the matrix element type *)
             match e' with
               SMatLit(_) -> TMatrix(ety)
-            | SMatAccess(_, _, _) | SMatAssign(_, _, _, _) when is_mat -> ety
+            | SMatAccess(_, _, _) | SMatAssign(_, _, _, _) when is_mat rt -> ety
             | _ -> rt
           in
+
+          (* If assigning matrix literal, update the symbtbl entry for the matrix element type (ety) field *)
+          if (is_mat lt && is_matt rt) then
+            let _ = print_string "okay updating type" in
+            let entry = {
+              ty = type_of_identifier var blk.symtbl;
+              ety = ety';
+            }
+            in
+            let _ = if Hashtbl.mem blk.symtbl var
+                    then Hashtbl.add blk.symtbl var entry
+                    else raise(Failure ("undeclared identifier " ^ var))
+            in
           let err = "illegal assignment " ^ string_of_typ lt ^ " = " ^
-            string_of_typ (if is_mat then mrt else rt) ^ " in " ^ string_of_expr ex
-          in (check_assign lt (if is_mat then mrt else rt) err, SAssign(var, ((if is_mat then mrt else rt), e')))
+            string_of_typ (if is_mat rt then mrt else rt) ^ " in " ^ string_of_expr ex
+          in (check_assign lt (if is_mat rt then mrt else if is_matt rt then Matrix else rt) err,
+              SAssign(var, ((if is_mat rt then mrt else if is_matt rt then Matrix else rt), e')))
       | Unop(op, e) as ex ->
           let (t, e') = expr blk e in
           let ty = match op with
@@ -282,6 +302,8 @@ let check (globals, functions) =
           and auto_err = "declared auto variable without initializer in " ^
             string_of_stmt st ^ " in function " ^ func.fname
 
+
+          (* Change type to RHS if auto *)
           in let _ = if t = Auto && e = Noexpr
                      then raise (Failure auto_err)
 
@@ -292,6 +314,7 @@ let check (globals, functions) =
             ty = t';
             ety = None;
           }
+
           in
           let _ = if Hashtbl.mem blk.symtbl n
                   then raise (Failure redecl_err)
