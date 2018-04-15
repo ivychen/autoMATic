@@ -17,8 +17,12 @@ jobs:
 
       - run:
           name: Build language
-          command: make
+          command: make test
 
       - run:
           name: Run test suite
           command: ~/autoMATic/test.sh
+
+      - run:
+          name: Generate coverage report
+          command: ocveralls --repo_token $COVERALLS_TOKEN --prefix _build bisect*.out --send

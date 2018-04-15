@@ -7,10 +7,19 @@
 .PHONY : all
 all : automatic.native
 
+.PHONY : test
+test : automatic.test
+
 .PHONY : automatic.native
 automatic.native :
 	rm -f *.o
 	ocamlbuild -use-ocamlfind -pkgs llvm,llvm.analysis -cflags -g,-w,+a-4 \
+		automatic.native
+
+.PHONY : automatic.test
+automatic.test :
+	rm -f *.o
+	ocamlbuild -use-ocamlfind -pkgs llvm,llvm.analysis,bisect_ppx -cflags -g,-w,+a-4 \
 		automatic.native
 
 # "make clean" removes all generated files
@@ -26,7 +35,7 @@ clean :
 OBJS = ast.cmx sast.cmx codegen.cmx parser.cmx scanner.cmx semant.cmx automatic.cmx
 
 automatic : $(OBJS)
-	ocamlfind ocamlopt -linkpkg -package llvm -package llvm.analysis $(OBJS) -o automatic
+	ocamlfind ocamlopt -linkpkg -package biseect_ppx -package llvm -package llvm.analysis $(OBJS) -o automatic
 
 scanner.ml : scanner.mll
 	ocamllex scanner.mll
