@@ -28,8 +28,9 @@ let translate (globals, functions) =
   and i8_t       = L.i8_type     context
   and i1_t       = L.i1_type     context
   and float_t    = L.double_type context
-  and void_t     = L.void_type   context in 
-  let str_t      = L.pointer_type i8_t
+  and void_t     = L.void_type   context  
+  and str_t      = L.pointer_type i8_t context
+  and array_t    = L.array_type context
   (* Create an LLVM module -- this is a "container" into which we'll 
      generate actual code *)
   and the_module = L.create_module context "autoMATic" in
@@ -41,7 +42,10 @@ let translate (globals, functions) =
     | A.Float  -> float_t
     | A.Void   -> void_t
     | A.String -> str_t
-    | A.Matrix -> // TODO 
+    | A.Matrix(type, rows, cols) -> (match type with 
+                                        | int   -> array_t (array_t i32_t cols)   rows
+                                        | bool  -> array_t (array_t i1_t cols)    rows
+                                        | float -> array_t (array_t float_t cols) rows)
     | A.Auto   -> (raise (Failure "internal error: unresolved autodecl"))
   in
 
@@ -72,6 +76,14 @@ let translate (globals, functions) =
 
   (*let printbig_t = L.function_type i32_t [| i32_t |] in
   let printbig_func = L.declare_function "printbig" printbig_t the_module in*)
+  
+  let rows = function
+      | (type, rows, cols) -> rows
+      | _ -> raise (Failure "operation allowed only on matrices")
+
+  let cols = function
+      | (type, rows, cols) -> cols
+      | _ -> raise (Failure "operation allowed only on matrices")
 
   (* Define each function (arguments and return type) so we can 
    * define it's body and call it later *)
@@ -173,6 +185,12 @@ let translate (globals, functions) =
       | SCall ("printstr", [e]) -> 
           L.build_call printf_func [| string_format_str ; (expr builder e) |]
             "printstr" builder
+      | Scall ("rows", [e]) ->
+          let null = L.build_is_null (expr builder e) "tmp" builder in
+          L.build_select null (L.const_int i32_t 0) (size (expr builder e)) "tmp" builder
+      | Scall ("cols", [e]) ->
+          let null = L.build_is_null (expr builder e) "tmp" builder in
+          L.build_select null (L.const_int i32_t 0) (cols (expr builder e)) "tmp" builder
       | SCall ("size", [e]) -> 
           L.build_call size_func [| (expr builder e) |]
             "size" builder
