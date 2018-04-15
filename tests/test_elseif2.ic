@@ -1,0 +1,12 @@
+int main() {
+	int x = 5;
+	if (x == 5) {
+		printstr("Hello");
+	} else if (x == 6) {
+		printstr("World");
+	} else {
+		printstr("!");
+	}
+
+	return 0;
+}
