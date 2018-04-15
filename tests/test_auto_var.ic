@@ -1,6 +1,6 @@
 int main() {
     auto x = 5;
-    auto y = "a string";
+    y := "a string";
 
     print(5);
     printstr(y);

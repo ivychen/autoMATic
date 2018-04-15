@@ -33,6 +33,7 @@ rule token = parse
 | "'"      { TRANSPOSE }
 | '%'      { MOD }
 | ':'      { SLICE }
+| ":="     { AUTODECL }
 | '='      { ASSIGN }
 | "=="     { EQ }
 | "!="     { NEQ }
