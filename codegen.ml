@@ -272,7 +272,7 @@ let translate (globals, functions) =
           loop's body, unless we returned or something) *)
           let while_builder = stmt (L.builder_at_end context body_bb) body in
 	  let () = add_terminal while_builder (L.build_br pred_bb)
-          in builder
+          in L.builder_at_end context merge_bb
 
       (* Implement for loops as while loops! *)
       | SFor (e1, e2, e3, body) -> stmt builder
