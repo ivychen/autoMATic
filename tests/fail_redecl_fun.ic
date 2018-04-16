@@ -1,0 +1,7 @@
+void test() { print(1); }
+void test() { print(0); }
+
+int main() {
+	test();
+	return 0;
+}

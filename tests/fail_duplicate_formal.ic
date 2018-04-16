@@ -1,0 +1,8 @@
+void test(int x, int x) {
+	print(x);
+}
+
+int main() {
+	test(5, 7);
+	return 0;
+}

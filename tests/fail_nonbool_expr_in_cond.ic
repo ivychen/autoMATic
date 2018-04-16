@@ -1,0 +1,6 @@
+int main() {
+	if(7) {
+		printstr("Hello!");
+	}
+	return 0;
+}

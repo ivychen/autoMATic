@@ -1,0 +1,15 @@
+int main() {
+	int x = 0;
+	int y = 2;
+
+	if (x == 0) printstr("x == 0");
+
+	bool pred = (x == 0);
+	if (pred) printstr("x == 0");
+	if (!!pred) printstr("x == 0");
+
+	pred = !pred;
+	if (pred == false) printstr("pred is false");
+
+	return 0;
+}
