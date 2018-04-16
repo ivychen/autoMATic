@@ -25,5 +25,5 @@ jobs:
 
       - run:
           name: Generate coverage report
-          command: ocveralls --repo_token $COVERALLS_TOKEN --prefix _build bisect*.out --send
+          command: ocveralls --repo_token $COVERALLS_REPO_TOKEN --git --prefix _build bisect*.out --send
           when: always
