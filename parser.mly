@@ -85,6 +85,7 @@ stmt:
   | ID AUTODECL expr SEMI                   { VDecl(Auto, $1, $3)   }
   | expr SEMI                               { Expr $1               }
   | RETURN expr_opt SEMI                    { Return $2             }
+  | CONTINUE SEMI                           { Continue              }
   | BREAK SEMI                              { Break 1               }
   | BREAK LITERAL SEMI                      { Break $2              }
   | LBRACE stmt_list RBRACE                 { Block(List.rev $2)    }
