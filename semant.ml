@@ -222,7 +222,8 @@ let check (globals, functions) =
         if !loop_depth = 0 then raise (Failure "Attempted to call continue without being in a loop")
         else SContinue
       | Break n ->
-        if n > !loop_depth then raise (Failure "Count on 'break' call too large for loop depth")
+        if !loop_depth = 0 then raise (Failure "Attempted to break out of loop without being in a loop")
+        else if n > !loop_depth then raise (Failure "Count on 'break' call too large for loop depth")
         else if n < 1 then raise (Failure "Cannot break out of less than one level of looping")
         else SBreak n
       | Return e -> let (t, e') = expr blk e in
