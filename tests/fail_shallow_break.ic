@@ -1,0 +1,8 @@
+int main() {
+	int i;
+	for (i = 0; i < 10; i++) {
+		break 2;
+	}
+
+	return 0;
+}
