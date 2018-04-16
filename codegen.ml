@@ -274,9 +274,41 @@ let translate (globals, functions) =
 	  let () = add_terminal while_builder (L.build_br pred_bb)
           in L.builder_at_end context merge_bb
 
-      (* Implement for loops as while loops! *)
-      | SFor (e1, e2, e3, body) -> stmt builder
-	    ( SBlock ([SExpr e1 ; SWhile (e2, SBlock ([body ; SExpr e3], db)) ], db) )
+      (* To support `continue` in for loops, we need to reimplement SWhile with
+       * the post-loop action added to the merge basic block *)
+      | SFor (preact, predicate, postact, body) ->
+          (* Emit preact first before we continue *)
+          let _ = expr builder preact in
+
+	  let pred_bb = L.append_block context "while" the_function in
+	  let _ = L.build_br pred_bb builder in
+
+	  let body_bb = L.append_block context "while_body" the_function in
+
+	  let pred_builder = L.builder_at_end context pred_bb in
+	  let bool_val = expr pred_builder predicate in
+
+	  let merge_bb = L.append_block context "merge" the_function in
+	  let _ = L.build_cond_br bool_val body_bb merge_bb pred_builder in
+          let _ = L.builder_at_end context merge_bb in
+
+          (* Emit a separate block for the post-action that continue statements
+           * can branch to *)
+          let postact_bb = L.append_block context "postact" the_function in
+
+          (* Add the post-action and merge blocks to our lists of jump points *)
+          let _ = continue_stack := postact_bb :: !continue_stack in
+          let _ = break_stack := merge_bb :: !break_stack in
+
+          let while_builder = stmt (L.builder_at_end context body_bb) body in
+
+          (* Emit the post-action itself *)
+          let postact_builder = L.builder_at_end context postact_bb in
+          let _ = expr postact_builder postact in
+
+          let _ = add_terminal postact_builder (L.build_br pred_bb) in
+	  let () = add_terminal while_builder (L.build_br postact_bb)
+          in L.builder_at_end context merge_bb
     in
 
     (* Build the code for each statement in the function *)
