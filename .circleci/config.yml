@@ -25,21 +25,25 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Configure OCaml environment
+          command: echo '. /home/opam/.opam/opam-init/init.sh > /dev/null 2> /dev/null || true' >> $BASH_ENV
+      - run:
+          name: Build language
+          command: make test
+      - run:
           name: Run test suite
           command: ~/autoMATic/test.sh
-      - store_artifacts:
-          path: testall.log
-          destination: test
       - run:
           name: Generate HTML coverage report
           command: bisect-ppx-report -I _build/ -html coverage/ bisect*.out
-      - store_artifacts:
-          path: coverage/
-          destination: coverage
       - run:
           name: Send coverage report to Coveralls
           command: ocveralls --repo_token $COVERALLS_REPO_TOKEN --git --prefix _build bisect*.out --send
           when: always
+      - store_artifacts:
+          path: testall.log
+      - store_artifacts:
+          path: coverage/
 
 workflows:
   version: 2
