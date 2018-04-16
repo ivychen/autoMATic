@@ -76,6 +76,10 @@ let translate (globals, functions) =
     let int_format_str = L.build_global_stringptr "%d\n" "fmt" builder
     and string_format_str = L.build_global_stringptr "%s\n" "fmt" builder in
 
+    (* Keep track of jump locations for breaking out of/continuing loops *)
+    let continue_stack = ref []
+    and break_stack = ref [] in
+
     (* Allocate space for any locally declared variables and add the
      * resulting registers to our map *)
     let add_local m (t, n) =
@@ -200,6 +204,8 @@ let translate (globals, functions) =
                   else (expr builder (t, SNoexpr))
           in builder
       | SExpr e -> let _ = expr builder e in builder 
+      | SContinue -> let _ = L.build_br (List.hd !continue_stack) builder in builder
+      | SBreak n -> let _ = L.build_br (List.nth !break_stack (n - 1)) builder in builder
       | SReturn e -> let _ = match fdecl.styp with
                               (* Special "return nothing" instr *)
                               A.Void -> L.build_ret_void builder 
@@ -245,12 +251,8 @@ let translate (globals, functions) =
           (* In current block, branch to predicate to execute the condition *)
 	  let _ = L.build_br pred_bb builder in
 
-          (* Create the body's block, generate the code for it, and add a branch
-          back to the predicate block (we always jump back at the end of a while
-          loop's body, unless we returned or something) *)
+          (* Make room for a body block for now. We'll build it later. *)
 	  let body_bb = L.append_block context "while_body" the_function in
-          let while_builder = stmt (L.builder_at_end context body_bb) body in
-	  let () = add_terminal while_builder (L.build_br pred_bb) in
 
           (* Generate the predicate code in the predicate block *)
 	  let pred_builder = L.builder_at_end context pred_bb in
@@ -259,7 +261,18 @@ let translate (globals, functions) =
           (* Hook everything up *)
 	  let merge_bb = L.append_block context "merge" the_function in
 	  let _ = L.build_cond_br bool_val body_bb merge_bb pred_builder in
-	  L.builder_at_end context merge_bb
+          let _ = L.builder_at_end context merge_bb in
+
+          (* Add the predicate and merge blocks to our lists of jump points *)
+          let _ = continue_stack := pred_bb :: !continue_stack in
+          let _ = break_stack := merge_bb :: !break_stack in
+
+          (* Create the body's block, generate the code for it, and add a branch
+          back to the predicate block (we always jump back at the end of a while
+          loop's body, unless we returned or something) *)
+          let while_builder = stmt (L.builder_at_end context body_bb) body in
+	  let () = add_terminal while_builder (L.build_br pred_bb)
+          in builder
 
       (* Implement for loops as while loops! *)
       | SFor (e1, e2, e3, body) -> stmt builder

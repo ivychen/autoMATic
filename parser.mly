@@ -6,7 +6,7 @@ open Ast
 
 %token SEMI LPAREN RPAREN LBRACE RBRACE COMMA LBRACKET RBRACKET PIPE
 %token PLUS PLUSPLUS MINUS MINUSMINUS TIMES EXP ELEMTIMES DIVIDE ELEMDIVIDE TRANSPOSE MOD SLICE DOT ASSIGN AUTODECL
-%token NOT EQ NEQ LT LEQ GT GEQ AND OR TRUE FALSE
+%token NOT EQ NEQ LT LEQ GT GEQ AND OR TRUE FALSE BREAK CONTINUE
 %token RETURN IF ELSE FOR WHILE INT BOOL FLOAT VOID MATRIX STRING
 /* %token ARRAY */
 %token AUTO
@@ -85,6 +85,8 @@ stmt:
   | ID AUTODECL expr SEMI                   { VDecl(Auto, $1, $3)   }
   | expr SEMI                               { Expr $1               }
   | RETURN expr_opt SEMI                    { Return $2             }
+  | BREAK SEMI                              { Break 1               }
+  | BREAK LITERAL SEMI                      { Break $2              }
   | LBRACE stmt_list RBRACE                 { Block(List.rev $2)    }
   | IF LPAREN expr RPAREN stmt %prec NOELSE { If($3, $5, Block([])) }
   | IF LPAREN expr RPAREN stmt ELSE stmt    { If($3, $5, $7)        }

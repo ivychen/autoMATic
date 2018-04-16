@@ -96,6 +96,9 @@ let check (globals, functions) =
     }
     in
 
+    (* Keeps track of levels of loop nesting for break/continue statements *)
+    let loop_depth = 0 in
+
     (* Make sure no formals are void or duplicates *)
     let formals' = check_binds "formal" func.formals funblk.symtbl in
 
@@ -210,8 +213,17 @@ let check (globals, functions) =
           else SVDecl((check_assign t' et type_err), n, (et, e'))
       | If(p, b1, b2) -> SIf(check_bool_expr blk p, check_stmt blk b1, check_stmt blk b2)
       | For(e1, e2, e3, st) ->
+          let loop_depth = loop_depth + 1 in
 	  SFor(expr blk e1, check_bool_expr blk e2, expr blk e3, check_stmt blk st)
-      | While(p, s) -> SWhile(check_bool_expr blk p, check_stmt blk s)
+      | While(p, s) ->
+          let loop_depth = loop_depth + 1 in
+          SWhile(check_bool_expr blk p, check_stmt blk s)
+      | Continue ->
+        if loop_depth = 0 then raise (Failure "Attempted to call continue without being in a loop")
+        else SContinue
+      | Break n ->
+        if n < loop_depth then raise (Failure "Count on 'break' call too large for loop depth")
+        else SBreak n
       | Return e -> let (t, e') = expr blk e in
         if func.typ = Auto then func.typ <- t;
 
