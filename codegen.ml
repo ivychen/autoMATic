@@ -271,6 +271,11 @@ let translate (globals, functions) =
           back to the predicate block (we always jump back at the end of a while
           loop's body, unless we returned or something) *)
           let while_builder = stmt (L.builder_at_end context body_bb) body in
+
+          (* Now that we've exited a loop level, pop the jump stacks *)
+          let _ = continue_stack := List.tl !continue_stack in
+          let _ = break_stack := List.tl !break_stack in
+
 	  let () = add_terminal while_builder (L.build_br pred_bb)
           in L.builder_at_end context merge_bb
 
@@ -301,6 +306,10 @@ let translate (globals, functions) =
           let _ = break_stack := merge_bb :: !break_stack in
 
           let while_builder = stmt (L.builder_at_end context body_bb) body in
+
+          (* Pop the jump stacks *)
+          let _ = continue_stack := List.tl !continue_stack in
+          let _ = break_stack := List.tl !break_stack in
 
           (* Emit the post-action itself *)
           let postact_builder = L.builder_at_end context postact_bb in
