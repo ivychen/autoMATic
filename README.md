@@ -1,4 +1,4 @@
-# The autoMATic compiler [![CircleCI](https://circleci.com/gh/ivychen/autoMATic.svg?style=svg&circle-token=54dcd36f8be7646ac05391c2c8762d34d29847e1)](https://circleci.com/gh/ivychen/autoMATic)
+# The autoMATic compiler [![CircleCI](https://circleci.com/gh/ivychen/autoMATic.svg?style=svg&circle-token=54dcd36f8be7646ac05391c2c8762d34d29847e1)](https://circleci.com/gh/ivychen/autoMATic) [![Coverage Status](https://coveralls.io/repos/github/ivychen/autoMATic/badge.svg?t=PU57Uu)](https://coveralls.io/github/ivychen/autoMATic)
 
 COMS4115 PLT | Spring 2018
 
