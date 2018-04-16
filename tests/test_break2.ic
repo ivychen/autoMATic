@@ -1,0 +1,17 @@
+int mod(int a, int b) {
+	int c = a / b;
+	return a - b * c;
+}
+
+int main() {
+	int i;
+	for (i = 0; i < 12; i = i + 1) {
+		if (i == 10)
+			break;
+
+		if (mod(i, 2) == 0)
+			print(i);
+	}
+
+	return 0;
+}
