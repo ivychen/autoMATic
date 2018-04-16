@@ -57,6 +57,7 @@ let check (globals, functions) =
       body = [] } map
     in List.fold_left add_bind StringMap.empty [ ("printstr", [String], Void);
                                                  ("print", [Int], Void);
+                                                 ("printflt", [Float], Void);
                                                  ("size", [Matrix], Matrix);
                                                  ("det", [Matrix], Float);
                                                  ("minor", [Matrix; Int; Int], Matrix);

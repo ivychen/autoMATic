@@ -74,6 +74,7 @@ let translate (globals, functions) =
     let builder = L.builder_at_end context (L.entry_block the_function) in
 
     let int_format_str = L.build_global_stringptr "%d\n" "fmt" builder
+    and float_format_str = L.build_global_stringptr "%f\n" "fmt" builder
     and string_format_str = L.build_global_stringptr "%s\n" "fmt" builder in
 
     (* Keep track of jump locations for breaking out of/continuing loops *)
@@ -161,6 +162,9 @@ let translate (globals, functions) =
       | SCall ("printstr", [e]) -> 
           L.build_call printf_func [| string_format_str ; (expr builder e) |]
             "printstr" builder
+      | SCall ("printflt", [e]) ->
+          L.build_call printf_func [| float_format_str ; (expr builder e) |]
+            "printflt" builder
       | SCall (f, act) ->
          let (fdef, fdecl) = StringMap.find f function_decls in
 	 let actuals = List.rev (List.map (expr builder) (List.rev act)) in
