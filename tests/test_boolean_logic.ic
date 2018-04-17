@@ -14,5 +14,13 @@ int main() {
 	pred = true;
 	if (pred == true) printstr("pred is true");
 
+	bool pred2 = false;
+	if (pred and pred2) printstr("pred and pred2 are true"); // false
+	pred2 = true;
+	if (pred and pred2) printstr("pred and pred2 are true"); // true
+
+	if (not pred and not pred2) printstr("!pred and !pred2 are true"); // false
+	if (not not pred and not not pred2) printstr("!!pred and !!pred2 are true"); // true
+
 	return 0;
 }
