@@ -131,6 +131,7 @@ let translate (globals, functions) =
 	  | A.Leq     -> L.build_fcmp L.Fcmp.Ole
 	  | A.Greater -> L.build_fcmp L.Fcmp.Ogt
 	  | A.Geq     -> L.build_fcmp L.Fcmp.Oge
+          | A.Mod     -> L.build_frem
 	  | A.And | A.Or ->
 	      raise (Failure "internal error: semant should have rejected and/or on float")
 	  ) e1' e2' "tmp" builder 
@@ -147,6 +148,7 @@ let translate (globals, functions) =
 	  | A.Leq     -> L.build_icmp L.Icmp.Sle
 	  | A.Greater -> L.build_icmp L.Icmp.Sgt
 	  | A.Geq     -> L.build_icmp L.Icmp.Sge
+          | A.Mod     -> L.build_srem
 	  ) e1' e2' "tmp" builder
       | SUnop(op, e) ->
 	  let (t, _) = e and e' = expr builder e in
