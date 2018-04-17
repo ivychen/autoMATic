@@ -45,7 +45,8 @@ let translate (globals, functions) =
     | A.Matrix(type, rows, cols) -> (match type with 
                                         | int   -> array_t (array_t i32_t cols)   rows
                                         | bool  -> array_t (array_t i1_t cols)    rows
-                                        | float -> array_t (array_t float_t cols) rows)
+                                        | float -> array_t (array_t float_t cols) rows
+                                        | _     -> raise (Failure "invalid matrix type"))
     | A.Auto   -> (raise (Failure "internal error: unresolved autodecl"))
   in
 
@@ -59,31 +60,26 @@ let translate (globals, functions) =
   let printf_t = L.var_arg_function_type i32_t [| L.pointer_type i8_t |] in
   let printf_func = L.declare_function "printf" printf_t the_module in
 
-  let size_t = L.function_type (ltype_of_typ A.matrix) [| ltype_of_type A.Matrix |] in 
-  let size_func = L.declare_function "size" size_t the_module
+  (* let size_t = L.function_type (ltype_of_typ A.matrix) [| ltype_of_type A.Matrix |] in 
+  let size_func = L.declare_function "size" size_t the_module in
 
   let det_t = L.function_type float_t [| ltype_of_type A.Matrix |] in 
-  let det_func = L.declare_function "det" det_t the_module
+  let det_func = L.declare_function "det" det_t the_module in
 
   let minor_t = L.function_type (ltype_of_type A.matrix) [| ltype_of_type A.Matrix; i32_t; i32_t |] in 
-  let minor_func = L.declare_function "minor" minor_t the_module
+  let minor_func = L.declare_function "minor" minor_t the_module in
 
   let inv_t = L.function_type (ltype_of_type A.matrix) [| ltype_of_type A.Matrix |] in 
-  let inv_func = L.declare_function "inv" inv_t the_module
+  let inv_func = L.declare_function "inv" inv_t the_module in
 
   let tr_t = L.function_type float_t [| ltype_of_type A.Matrix |] in 
-  let tr_func = L.declare_function "tr" tr_t the_module
+  let tr_func = L.declare_function "tr" tr_t the_module in *)
 
   (*let printbig_t = L.function_type i32_t [| i32_t |] in
   let printbig_func = L.declare_function "printbig" printbig_t the_module in*)
   
-  let rows = function
-      | (type, rows, cols) -> rows
-      | _ -> raise (Failure "operation allowed only on matrices")
-
-  let cols = function
-      | (type, rows, cols) -> cols
-      | _ -> raise (Failure "operation allowed only on matrices")
+  let rows A.Matrix(type, r, c) = r 
+  and cols A.Matrix(type, r, c) = c in
 
   (* Define each function (arguments and return type) so we can 
    * define it's body and call it later *)
@@ -185,13 +181,13 @@ let translate (globals, functions) =
       | SCall ("printstr", [e]) -> 
           L.build_call printf_func [| string_format_str ; (expr builder e) |]
             "printstr" builder
-      | Scall ("rows", [e]) ->
+      | SCall ("rows", [e]) ->
           let null = L.build_is_null (expr builder e) "tmp" builder in
-          L.build_select null (L.const_int i32_t 0) (size (expr builder e)) "tmp" builder
-      | Scall ("cols", [e]) ->
+          L.build_select null (L.const_int i32_t 0) (rows (expr builder e)) "tmp" builder
+      | SCall ("cols", [e]) ->
           let null = L.build_is_null (expr builder e) "tmp" builder in
           L.build_select null (L.const_int i32_t 0) (cols (expr builder e)) "tmp" builder
-      | SCall ("size", [e]) -> 
+      (* | SCall ("size", [e]) -> 
           L.build_call size_func [| (expr builder e) |]
             "size" builder
       | SCall ("det", [e]) -> 
@@ -205,7 +201,7 @@ let translate (globals, functions) =
             "inv" builder
       | SCall ("tr", [e]) -> 
           L.build_call tr_func [| (expr builder e) |]
-            "tr" builder
+            "tr" builder *)
       | SCall (f, act) ->
          let (fdef, fdecl) = StringMap.find f function_decls in
 	 let actuals = List.rev (List.map (expr builder) (List.rev act)) in
