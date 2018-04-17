@@ -1,0 +1,9 @@
+void printer() {
+	printstr("Hello!");
+	return;
+}
+
+int main() {
+	printer();
+	return 0;
+}

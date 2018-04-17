@@ -1,0 +1,6 @@
+int main() {
+	auto x;
+	x = 5;
+	printint(x);
+	return 0;
+}

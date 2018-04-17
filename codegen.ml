@@ -74,6 +74,7 @@ let translate (globals, functions) =
     let builder = L.builder_at_end context (L.entry_block the_function) in
 
     let int_format_str = L.build_global_stringptr "%d\n" "fmt" builder
+    and float_format_str = L.build_global_stringptr "%f\n" "fmt" builder
     and string_format_str = L.build_global_stringptr "%s\n" "fmt" builder in
 
     (* Keep track of jump locations for breaking out of/continuing loops *)
@@ -82,7 +83,7 @@ let translate (globals, functions) =
 
     (* Allocate space for any locally declared variables and add the
      * resulting registers to our map *)
-    let add_local m (t, n) =
+    let add_local m (t, n) builder =
       let local_var = L.build_alloca (ltype_of_typ t) n builder
       in Hashtbl.add m n local_var
     in
@@ -161,6 +162,9 @@ let translate (globals, functions) =
       | SCall ("printstr", [e]) -> 
           L.build_call printf_func [| string_format_str ; (expr builder e) |]
             "printstr" builder
+      | SCall ("printflt", [e]) ->
+          L.build_call printf_func [| float_format_str ; (expr builder e) |]
+            "printflt" builder
       | SCall (f, act) ->
          let (fdef, fdecl) = StringMap.find f function_decls in
 	 let actuals = List.rev (List.map (expr builder) (List.rev act)) in
@@ -198,7 +202,7 @@ let translate (globals, functions) =
 	SBlock (sl, _) -> List.fold_left stmt builder sl
         (* Generate code for this expression, return resulting builder *)
       | SVDecl (t, n, e) ->
-          let _ = add_local local_vars (t, n) in
+          let _ = add_local local_vars (t, n) builder in
           let _ = if (snd e) != SNoexpr
                   then (expr builder (t, SAssign(n, e)))
                   else (expr builder (t, SNoexpr))
