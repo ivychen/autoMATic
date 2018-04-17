@@ -11,5 +11,8 @@ int main() {
 	pred = not pred;
 	if (pred == false) printstr("pred is false");
 
+	pred = true;
+	if (pred == true) printstr("pred is true");
+
 	return 0;
 }

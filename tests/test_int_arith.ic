@@ -1,0 +1,32 @@
+int main() {
+	int i;
+	int j;
+
+	i = 0;
+	j = 5;
+	i = i + j;
+	j = i + j;
+
+	print(i); // 5
+	print(j); // 10
+	print(j - 1); // 9
+	print((j - 1) * 5); // 45
+
+	j = j - 5; // 5
+	if (i == j) printstr("i == j"); // true
+
+	i = i - 1; // 4
+
+	if (i == j) printstr("i == j"); // false
+	if (i != j) printstr("i != j"); // true
+	if (i < j) printstr("i < j"); // true
+	if (i <= j) printstr("i <= j"); // true
+	if (j <= j) printstr("j <= j"); // true
+
+	if (j <= i) printstr("j <= i"); // false
+	if (j > i) printstr("j > i"); // true
+	if (j >= i) printstr("j >= i"); // true
+	if (j >= j) printstr("j >= j"); // true
+
+	return 0;
+}
