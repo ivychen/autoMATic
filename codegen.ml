@@ -83,7 +83,7 @@ let translate (globals, functions) =
 
     (* Allocate space for any locally declared variables and add the
      * resulting registers to our map *)
-    let add_local m (t, n) =
+    let add_local m (t, n) builder =
       let local_var = L.build_alloca (ltype_of_typ t) n builder
       in Hashtbl.add m n local_var
     in
@@ -202,7 +202,7 @@ let translate (globals, functions) =
 	SBlock (sl, _) -> List.fold_left stmt builder sl
         (* Generate code for this expression, return resulting builder *)
       | SVDecl (t, n, e) ->
-          let _ = add_local local_vars (t, n) in
+          let _ = add_local local_vars (t, n) builder in
           let _ = if (snd e) != SNoexpr
                   then (expr builder (t, SAssign(n, e)))
                   else (expr builder (t, SNoexpr))
