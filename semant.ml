@@ -131,11 +131,11 @@ let check (globals, functions) =
 
     (* Return a semantically-checked expression, i.e., with a type *)
     let rec expr blk = function
-        IntLit   l -> (Int, SIntLit l)
-      | FloatLit l -> (Float, SFloatLit l)
-      | BoolLit  l -> (Bool, SBoolLit l)
-      | StrLit   l -> (String, SStrLit l)
-      | Noexpr     -> (Void, SNoexpr)
+        IntLit   l -> (DataType(Int), SIntLit l)
+      | FloatLit l -> (DataType(Float), SFloatLit l)
+      | BoolLit  l -> (DataType(Bool), SBoolLit l)
+      | StrLit   l -> (DataType(String), SStrLit l)
+      | Noexpr     -> (DataType(Void), SNoexpr)
       | Id s       -> (type_of_identifier s blk.symtbl, SId s)
       | Assign(var, e) as ex ->
           let lt = type_of_identifier var blk.symtbl
