@@ -122,6 +122,12 @@ let check (globals, functions) =
     in
 
     (* Return a variable from our local symbol table *)
+    (* entry.ty is one of:
+          Matrix(primitive, int, int)
+          Auto
+          DataType(primitive)
+          MatrixRet(primitive)
+    *)
     let type_of_identifier s tbl =
       let entry = (if Hashtbl.mem tbl s
                    then Hashtbl.find tbl s
@@ -141,7 +147,7 @@ let check (globals, functions) =
           let lt = type_of_identifier var blk.symtbl
           and (rt, e') = expr blk e in
           (* If matrix type, use type of matrix element to check *)
-          let is_mat m =
+          (* let is_mat m =
             match m with
               Matrix -> true
             | _ -> false
@@ -177,7 +183,7 @@ let check (globals, functions) =
             let _ = if Hashtbl.mem blk.symtbl var
                     then Hashtbl.add blk.symtbl var entry
                     else raise(Failure ("undeclared identifier " ^ var))
-            in
+            in *)
           let err = "illegal assignment " ^ string_of_typ lt ^ " = " ^
             string_of_typ (if is_mat rt then mrt else rt) ^ " in " ^ string_of_expr ex
           in (check_assign lt (if is_mat rt then mrt else if is_matt rt then Matrix else rt) err,
@@ -244,25 +250,56 @@ let check (globals, functions) =
           (* Semantically checked matrix *)
           let smat = List.fold_left check_mat_rows [] m in
           (* Type of matrix is type of its elements (uniform); restricted to Int, Bool, Float types*)
+          let num_rows = List.length m in
+          let num_cols = (if num_rows = 0 then 0 else List.length (List.hd m)) in
+          (* Get matrix type *)
           let mty = fst (List.hd (List.hd smat)) in
-          if mty != Int && mty != Float && mty != Bool
-          then raise(Failure("Matrix elements must be of type Int, Bool or Float"))
-          else (TMatrix(mty), SMatLit(smat))
+            if mty = DataType(Int) then (Matrix(Int, num_rows, num_cols), SMatLit(smat))
+            else if mty = DataType(Float) then (Matrix(Float, num_rows, num_cols), SMatLit(smat))
+            else if mty = DataType(Bool) then (Matrix(Bool, num_rows, num_cols), SMatLit(smat))
+            else raise(Failure("Matrix elements must be of type Int, Bool or Float"))
+            (* if mty != DataType(Int) && mty != DataType(Float) && mty != DataType(Bool)
+            then raise(Failure("Matrix elements must be of type Int, Bool or Float"))
+            else (Matrix(mty, num_rows, num_cols), SMatLit(smat)) *)
       | MatAccess(s,e1,e2) as ex ->
           let se1 = expr blk e1 in
           let se2 = expr blk e2 in
           let ty = type_of_identifier s blk.symtbl in
+          (* Check that access indices are integers *)
+          let _ = (match (type_of_identifier e1) with
+            DataType(Int) -> DataType(Int)
+          | _ -> raise (Failure ("attempting to access with a non-integer type")))
+          and _ = (match (type_of_identifier e2) with
+            DataType(Int) -> DataType(Int)
+          | _ -> raise (Failure ("attempting to access with a non-integer type"))) in
+          (* Semantically checked matrix assignment *)
           (match ty with
-              TMatrix(ty)  ->  (TMatrix(ty), SMatAccess(s, se1, se2))
+              Matrix(t, r, c)  ->  (Matrix(t, r, c), SMatAccess(s, se1, se2))
             | _       ->  raise(Failure("Cannot access elements of non-matrix type " ^ string_of_typ ty ^ " in " ^ string_of_expr ex)))
 
       | MatAssign(s,e1,e2,e3) as ex ->
+          (* Left hand side *)
           let se1 = expr blk e1 in
           let se2 = expr blk e2 in
+          (* Right hand side *)
           let se3 = expr blk e3 in
+          let extract_ty elem = (match elem with
+            DataType(t) -> if t = Int then Int
+                           else if t = Float then Float
+                           else if t = Bool then Bool
+                           else raise(Failure("Right-hand type is not Int, Bool or Float"))
+          | Matrix(p)   -> if p = Int then Int
+                           else if p = Float then Float
+                           else if p = Bool then Bool
+                           else raise(Failure("Right-hand type is not Int, Bool or Float"))
+          | _           -> raise(Failure("Invalid matrix assignment"))
+          )
+          in let rhs_ty = extract_ty e3 in
+          (* Matrix type *)
           let ty = type_of_identifier s blk.symtbl in
           (match ty with
-              TMatrix(ty)  -> (TMatrix(ty), SMatAssign(s, se1, se2, se3))
+              Matrix(t, r, c)  -> if t = rhs_ty then (Matrix(t, r, c), SMatAssign(s, se1, se2, se3))
+                                  else raise(Failure("Invalid matrix assignment"))
             | _       ->  raise(Failure("Cannot assign incompatible element of " ^ string_of_typ ty ^ " in " ^ string_of_expr ex)))
 
       | Call(fname, args) as call ->
