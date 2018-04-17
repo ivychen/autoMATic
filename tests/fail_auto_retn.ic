@@ -1,0 +1,7 @@
+auto x() {
+    printstr("x is a void-returning function");
+}
+
+int main() {
+    return x();
+}

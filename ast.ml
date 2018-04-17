@@ -5,7 +5,13 @@ type op = Add | Sub | Mult | Exp | ElemMult | Div | ElemDiv | Mod | Equal | Neq
 
 type uop = Neg | Not | Inc | Dec | Trans
 
-type typ = Int | Bool | Float | String | Matrix | Void | Auto
+type primitive = Int | Bool | Float | String | Void
+
+type typ =
+    Matrix of primitive * int * int
+  | Auto
+  | DataType of primitive
+  | MatrixRet of primitive
 
 type expr =
     IntLit of int
@@ -99,12 +105,32 @@ let rec string_of_expr = function
   | Noexpr -> ""
 
 let string_of_typ = function
-    Int -> "int"
+    (* Int -> "int"
   | Bool -> "bool"
   | Float -> "float"
   | String -> "string"
-  | Matrix -> "matrix" (* @TODO Ivy: also output inferred matrix element type? *)
-  | Void -> "void"
+  | Matrix -> "matrix"
+  | TMatrix(t) -> string_of_typ t ^ " matrix"
+  | Void -> "void" *)
+    DataType(Int)     -> "int"
+  | DataType(Float)   -> "float"
+  | DataType(String)  -> "string"
+  | DataType(Bool)    -> "bool"
+  | DataType(Void)    -> "void"
+  | Matrix(t, r, c)   -> (match t with
+        Int   -> "int matrix (r:" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
+      | Float -> "float matrix" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
+      | Bool  -> "bool matrix" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
+      | String -> "string matrix" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
+      | Void  -> "void matrix" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
+    )
+  | MatrixRet(t)  -> (match t with
+        Int   -> "int matrix"
+      | Float -> "float matrix"
+      | Bool  -> "bool matrix"
+      | String -> "string matrix"
+      | Void  -> "void matrix"
+    )
   | Auto -> "auto"
   (* | Array -> "array" *)
 
@@ -126,9 +152,16 @@ let rec string_of_stmt = function
 
 let string_of_vdecl (t, id) = string_of_typ t ^ " " ^ id ^ ";\n"
 
+let string_of_tuple x = "(" ^ (fst x) ^ " : " ^ string_of_typ (snd x) ^ ")"
+
+(* Print out argument type and argument identifier *)
 let string_of_fdecl fdecl =
   string_of_typ fdecl.typ ^ " " ^
-  fdecl.fname ^ "(" ^ String.concat ", " (List.map snd fdecl.formals) ^
+  fdecl.fname ^ "(" ^ String.concat ", " (
+    List.map string_of_tuple (
+      List.combine (List.map snd fdecl.formals) (List.map fst fdecl.formals)
+      )
+    ) ^
   ")\n{\n" ^
   String.concat "" (List.map string_of_stmt fdecl.body) ^
   "}\n"

@@ -7,7 +7,9 @@ open Ast
 %token SEMI LPAREN RPAREN LBRACE RBRACE COMMA LBRACKET RBRACKET PIPE
 %token PLUS PLUSPLUS MINUS MINUSMINUS TIMES EXP ELEMTIMES DIVIDE ELEMDIVIDE TRANSPOSE MOD SLICE DOT ASSIGN
 %token NOT EQ NEQ LT LEQ GT GEQ AND OR TRUE FALSE
-%token RETURN IF ELSE ELIF FOR WHILE INT BOOL FLOAT VOID MATRIX STRING
+%token RETURN IF ELSE ELIF FOR WHILE INT BOOL FLOAT VOID STRING
+/* tokens for matrix, number of rows and columns */
+%token MATRIX
 /* %token ARRAY */
 %token AUTO
 %token <int> LITERAL
@@ -53,9 +55,9 @@ vdecl:
 fdecl:
    typ ID LPAREN formals_opt RPAREN LBRACE stmt_list RBRACE
      { { typ = $1;
-	 fname = $2;
-	 formals = $4;
-	 body = List.rev $7 } }
+      	 fname = $2;
+      	 formals = $4;
+      	 body = List.rev $7 } }
 
 formals_opt:
     /* nothing */ { [] }
@@ -66,13 +68,32 @@ formal_list:
   | formal_list COMMA typ ID { ($3,$4) :: $1 }
 
 typ:
+    primitive          { DataType($1) }
+  | matrix_type        { $1 }
+  | AUTO               { Auto }
+  | matrix_ret         { $1 }
+
+/* Matrices are declared with the type its elements, and number of rows, columns
+   Example: int matrix [3][3] m;
+*/
+matrix_type:
+  primitive MATRIX LBRACKET LITERAL RBRACKET LBRACKET LITERAL RBRACKET  { Matrix($1, $4, $7) }
+
+/* Return matrix from function, essentially a syntactic style choice
+   Example: int matrix main() { ... }
+ */
+matrix_ret:
+  primitive MATRIX    { MatrixRet($1)}
+
+/* Primitive data types */
+primitive:
     INT   { Int   }
   | BOOL  { Bool  }
   | FLOAT { Float }
   | STRING { String }
-  | MATRIX { Matrix }
+  /* | MATRIX { Matrix } */
   | VOID  { Void  }
-  | AUTO { Auto }
+  /* | AUTO { Auto } */
   /* | ARRAY { Array } */
 
 stmt_list:
@@ -97,7 +118,7 @@ expr_opt:
 
 expr:
     LITERAL              { IntLit($1)               }
-  | FLIT	             { FloatLit($1)             }
+  | FLIT	               { FloatLit($1)             }
   | TRUE                 { BoolLit(true)            }
   | FALSE                { BoolLit(false)           }
   | STRLIT               { StrLit($1)               }
