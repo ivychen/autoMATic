@@ -66,8 +66,8 @@ let string_of_op = function
   | Leq -> "<="
   | Greater -> ">"
   | Geq -> ">="
-  | And -> "&&"
-  | Or -> "||"
+  | And -> "and"
+  | Or -> "or"
 
 let string_of_uop = function
     Neg -> "-"

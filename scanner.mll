@@ -41,7 +41,7 @@ rule token = parse
 | "<="     { LEQ }
 | ">"      { GT }
 | ">="     { GEQ }
-| "!"      { NOT }
+| "not"    { NOT }
 | '.'      { DOT }
 (* ---------- CONTROL FLOW -------- *)
 | "and"    { AND }

@@ -6,9 +6,9 @@ int main() {
 
 	bool pred = (x == 0);
 	if (pred) printstr("x == 0");
-	if (!!pred) printstr("x == 0");
+	if (not not pred) printstr("x == 0");
 
-	pred = !pred;
+	pred = not pred;
 	if (pred == false) printstr("pred is false");
 
 	return 0;
