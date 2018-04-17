@@ -170,8 +170,10 @@ let check (globals, functions) =
             let err = "illegal argument found " ^ string_of_typ et ^
               " expected " ^ string_of_typ ft ^ " in " ^ string_of_expr e in
             let auto_err = "function " ^ fname ^
-              " has illegal auto-declared parameter " ^ n 
+              " has illegal auto-declared parameter " ^ n  in
+            let void_err = "illegal void formal " ^ n
             in let _ = if ft = Auto then raise (Failure auto_err)
+            in let _ = if ft = Void then raise (Failure void_err)
             in (check_assign ft et err, e')
           in 
           let args' = List.map2 check_call fd.formals args
