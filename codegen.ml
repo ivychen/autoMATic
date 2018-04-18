@@ -30,7 +30,7 @@ let translate (globals, functions) =
   and float_t    = L.double_type       context
   and void_t     = L.void_type         context in
   let str_t      = L.pointer_type i8_t
-  and array_t    = L.array_type        
+  and array_t    = L.array_type       
   (* Create an LLVM module -- this is a "container" into which we'll
      generate actual code *)
   and the_module = L.create_module context "autoMATic" in
@@ -201,12 +201,12 @@ let translate (globals, functions) =
               let float_list_of_arrays = List.map (L.const_array flaot_t) list_of_arrays in
               let array_of_arrays = Array.of_list float_list_of_arrays in
               L.const_array (array_t float_t (List.length (List.hd mat))) array_of_arrays)
-      | SMatAccess (id, row, col) ->
+      | SMatAccess (id, row, col) =
           let row = expr builder row
           and col = expr builder col
           and reg = L.build_gep (lookup id) [| L.const_int i32_t 0, row, col |] id builder in
           L.build_load reg id builder
-      | SMatAssign (id, row, col, value) ->
+      | SMatAssign (id, row, col, value) =
           let row   = expr builder row
           and col   = expr builder col
           and reg   = L.build_gep (lookup id) [| L.const_int i32_t 0, row, col |] id builder

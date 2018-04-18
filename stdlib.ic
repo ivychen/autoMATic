@@ -48,5 +48,5 @@ float tr(matrix A) {
             transpose[i][j] = A[j][i];
         }
     }
-    return transpose;       
+    return transpose;
 }
