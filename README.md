@@ -33,6 +33,19 @@ Run `./test.sh`
 
 **Do not** run './testgen.sh'
 
+### Additional tests submitted for Deliverable #4
+"Positive" test programs have names that begin with `test_` and "negative" test programs have names that begin with `fail_`; the positive test programs are listed first. Whether or not the feature it tests is new (did not originate in MicroC) is indicated after the test program name. Tests can be found in `/tests`.
+1. `test_auto_fun1.ic` (new) tests the `auto` keyword in function declarations. `auto` forces the compiler to determine the return type of the function dynamically.
+2. `test_break1.ic` (new) tests the `break` keyword in a while-loop. `break` immediately terminates the innermost loop.
+3. `test_scope1.ic` (new) tests the reassignment of a variable in a nested block. This is part of our implementation of lexical scoping.
+4. `test_elseif1.ic` tests `else if` control flow, which allows if-else statements to be chained.
+5. `test_continue1.ic` (new) tests the `continue` keyword in a for-loop. `continue` skips the remaining statements in the innermost loop and executes the loop again (i.e. re-evaluates the loop condition).
+6. `test_scope_redecl.ic` (new) tests whether variables declared in separate blocks (not nested) overwrite or conflict with each other. In lexical scoping, they should not conflict.
+7. `test_auto_var.ic` (new) tests the `auto` keyword in variable assignments. `auto` forces the compiler to determine the type of the variable dynamically.
+8. `fail_continue_no_loop.ic` (new) ensures that `continue` causes an error when used outside the context of a loop.
+9. `fail_dangling_elseif.ic` ensures that `else if` is not used without a preceding `if` block.
+10. `fail_redeclared_formal.ic` ensures that the names of formals in function definitions cannot be assigned or reused. 
+
 ## Additional Syntax to be Added:
 
 1. `elif` statements need to be parsed
