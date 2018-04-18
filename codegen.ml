@@ -24,13 +24,13 @@ module StringMap = Map.Make(String)
 let translate (globals, functions) =
   let context    = L.global_context () in
   (* Add types to the context so we can use them in our LLVM code *)
-  let i32_t      = L.i32_type    context
-  and i8_t       = L.i8_type     context
-  and i1_t       = L.i1_type     context
-  and float_t    = L.double_type context
-  and void_t     = L.void_type   context  
+  let i32_t      = L.i32_type          context
+  and i8_t       = L.i8_type           context
+  and i1_t       = L.i1_type           context
+  and float_t    = L.double_type       context
+  and void_t     = L.void_type         context  
   and str_t      = L.pointer_type i8_t context
-  and array_t    = L.array_type context
+  and array_t    = L.array_type        context
   (* Create an LLVM module -- this is a "container" into which we'll 
      generate actual code *)
   and the_module = L.create_module context "autoMATic" in
@@ -42,11 +42,11 @@ let translate (globals, functions) =
     | A.Float  -> float_t
     | A.Void   -> void_t
     | A.String -> str_t
-    | A.Matrix(type, rows, cols) -> (match type with 
-                                        | int   -> array_t (array_t i32_t cols)   rows
-                                        | bool  -> array_t (array_t i1_t cols)    rows
-                                        | float -> array_t (array_t float_t cols) rows
-                                        | _     -> raise (Failure "invalid matrix type"))
+    | A.Matrix(typ, rows, cols) -> (match typ with 
+                                        | A.Int   -> array_t (array_t i32_t cols)   rows
+                                        | A.Bool  -> array_t (array_t i1_t cols)    rows
+                                        | A.Float -> array_t (array_t float_t cols) rows
+                                        | _       -> raise (Failure "syntax error: invalid matrix type"))
     | A.Auto   -> (raise (Failure "internal error: unresolved autodecl"))
   in
 
@@ -76,11 +76,8 @@ let translate (globals, functions) =
   let tr_func = L.declare_function "tr" tr_t the_module in *)
 
   (*let printbig_t = L.function_type i32_t [| i32_t |] in
-  let printbig_func = L.declare_function "printbig" printbig_t the_module in*)
+  let printbig_func = L.declare_function "printbig" printbig_t the_module in *)
   
-  let rows A.Matrix(type, r, c) = r 
-  and cols A.Matrix(type, r, c) = c in
-
   (* Define each function (arguments and return type) so we can 
    * define it's body and call it later *)
   let function_decls =
@@ -126,7 +123,7 @@ let translate (globals, functions) =
     let lookup n = try Hashtbl.find local_vars n
                    with Not_found -> StringMap.find n global_vars
     in
-
+    
     (* Construct code for an expression; return its value *)
     let rec expr builder (_, e) = match e with
 	SIntLit i -> L.const_int i32_t i
@@ -181,12 +178,40 @@ let translate (globals, functions) =
       | SCall ("printstr", [e]) -> 
           L.build_call printf_func [| string_format_str ; (expr builder e) |]
             "printstr" builder
-      | SCall ("rows", [e]) ->
-          let null = L.build_is_null (expr builder e) "tmp" builder in
-          L.build_select null (L.const_int i32_t 0) (rows (expr builder e)) "tmp" builder
+      | SCall ("rows", [e]) -> 
+          let A.Matrix(_, r, _) = expr builder e in L.build_load (L.const_int i32_t r) "rows" builder
       | SCall ("cols", [e]) ->
-          let null = L.build_is_null (expr builder e) "tmp" builder in
-          L.build_select null (L.const_int i32_t 0) (cols (expr builder e)) "tmp" builder
+          let A.Matrix(_, _, c) = expr builder e in L.build_load (L.const_int i32_t c) "cols" builder
+      | SMatLit mat -> (match (List.hd (List.hd mat)) with 
+          | A.IntLit _ -> let real_order = List.map List.rev mat in 
+              let i32_lists = List.map (List.map (expr builder)) real_order in 
+              let list_of_arrays = List.map Array.of_list i32_lists in
+              let i32_list_of_arrays = List.map (L.const_array i32_t) list_of_arrays in
+              let array_of_arrays = Array.of_list i32_list_of_arrays in
+              L.const_array (array_t i32_t (List.length (List.hd mat))) array_of_arrays
+          | A.BoolLit _ -> let real_order = List.map List.rev mat in 
+              let i1_lists = List.map (List.map (expr builder)) real_order in 
+              let list_of_arrays = List.map Array.of_list i1_lists in
+              let i1_list_of_arrays = List.map (L.const_array i1_t) list_of_arrays in
+              let array_of_arrays = Array.of_list i1_list_of_arrays in
+              L.const_array (array_t i1_t (List.length (List.hd mat))) array_of_arrays
+          | A.FloatLit _ -> let real_order = List.map List.rev mat in 
+              let float_lists = List.map (List.map (expr builder)) real_order in 
+              let list_of_arrays = List.map Array.of_list float_lists in
+              let float_list_of_arrays = List.map (L.const_array flaot_t) list_of_arrays in
+              let array_of_arrays = Array.of_list float_list_of_arrays in
+              L.const_array (array_t float_t (List.length (List.hd mat))) array_of_arrays)
+      | SMatAccess (id, row, col) = 
+          let row = expr builder row
+          and col = expr builder col 
+          and reg = L.build_gep (lookup id) [| L.const_int i32_t 0, row, col |] id builder in
+          L.build_load reg id builder 
+      | SMatAssign (id, row, col, value) = 
+          let row   = expr builder row
+          and col   = expr builder col 
+          and reg   = L.build_gep (lookup id) [| L.const_int i32_t 0, row, col |] id builder 
+          and value = expr builder value in
+          L.build_store value reg builder 
       (* | SCall ("size", [e]) -> 
           L.build_call size_func [| (expr builder e) |]
             "size" builder
