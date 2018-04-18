@@ -15,7 +15,7 @@ http://llvm.moe/ocaml/
 (* We'll refer to Llvm and Ast constructs with module names *)
 module L = Llvm
 module A = Ast
-open Sast 
+open Sast
 
 module StringMap = Map.Make(String)
 
@@ -24,13 +24,14 @@ module StringMap = Map.Make(String)
 let translate (globals, functions) =
   let context    = L.global_context () in
   (* Add types to the context so we can use them in our LLVM code *)
-  let i32_t      = L.i32_type    context
-  and i8_t       = L.i8_type     context
-  and i1_t       = L.i1_type     context
-  and float_t    = L.double_type context
-  and void_t     = L.void_type   context in 
+  let i32_t      = L.i32_type          context
+  and i8_t       = L.i8_type           context
+  and i1_t       = L.i1_type           context
+  and float_t    = L.double_type       context
+  and void_t     = L.void_type         context in
   let str_t      = L.pointer_type i8_t
-  (* Create an LLVM module -- this is a "container" into which we'll 
+  and array_t    = L.array_type        
+  (* Create an LLVM module -- this is a "container" into which we'll
      generate actual code *)
   and the_module = L.create_module context "autoMATic" in
 
@@ -41,6 +42,11 @@ let translate (globals, functions) =
     | A.Float  -> float_t
     | A.Void   -> void_t
     | A.String -> str_t
+    | A.Matrix(typ, rows, cols) -> (match typ with
+                                        | A.Int   -> array_t (array_t i32_t cols)   rows
+                                        | A.Bool  -> array_t (array_t i1_t cols)    rows
+                                        | A.Float -> array_t (array_t float_t cols) rows
+                                        | _       -> raise (Failure "syntax error: invalid matrix type"))
     | A.Auto   -> (raise (Failure "internal error: unresolved autodecl"))
   in
 
@@ -54,20 +60,35 @@ let translate (globals, functions) =
   let printf_t = L.var_arg_function_type i32_t [| L.pointer_type i8_t |] in
   let printf_func = L.declare_function "printf" printf_t the_module in
 
-  (*let printbig_t = L.function_type i32_t [| i32_t |] in
-  let printbig_func = L.declare_function "printbig" printbig_t the_module in*)
+  (* let size_t = L.function_type (ltype_of_typ A.matrix) [| ltype_of_type A.Matrix |] in
+  let size_func = L.declare_function "size" size_t the_module in
 
-  (* Define each function (arguments and return type) so we can 
+  let det_t = L.function_type float_t [| ltype_of_type A.Matrix |] in
+  let det_func = L.declare_function "det" det_t the_module in
+
+  let minor_t = L.function_type (ltype_of_type A.matrix) [| ltype_of_type A.Matrix; i32_t; i32_t |] in
+  let minor_func = L.declare_function "minor" minor_t the_module in
+
+  let inv_t = L.function_type (ltype_of_type A.matrix) [| ltype_of_type A.Matrix |] in
+  let inv_func = L.declare_function "inv" inv_t the_module in
+
+  let tr_t = L.function_type float_t [| ltype_of_type A.Matrix |] in
+  let tr_func = L.declare_function "tr" tr_t the_module in *)
+
+  (*let printbig_t = L.function_type i32_t [| i32_t |] in
+  let printbig_func = L.declare_function "printbig" printbig_t the_module in *)
+
+  (* Define each function (arguments and return type) so we can
    * define it's body and call it later *)
   let function_decls =
     let function_decl m fdecl =
       let name = fdecl.sfname
-      and formal_types = 
+      and formal_types =
 	Array.of_list (List.map (fun (t,_) -> ltype_of_typ t) fdecl.sformals)
       in let ftype = L.function_type (ltype_of_typ fdecl.styp) formal_types in
       StringMap.add name (L.define_function name ftype the_module, fdecl) m in
     List.fold_left function_decl StringMap.empty functions in
-  
+
   (* Fill in the body of the given function *)
   let build_function_body fdecl =
     let (the_function, _) = StringMap.find fdecl.sfname function_decls in
@@ -87,7 +108,7 @@ let translate (globals, functions) =
        declared variables.  Allocate each on the stack, initialize their
        value, if appropriate, and remember their values in the "locals" map *)
     let local_vars = Hashtbl.create 10
-    in let add_formal m (t, n) p = 
+    in let add_formal m (t, n) p =
       let () = L.set_value_name n p in
       let local = L.build_alloca (ltype_of_typ t) n builder in
       let _  = L.build_store p local builder in
@@ -115,11 +136,11 @@ let translate (globals, functions) =
 	  let (t, _) = e1
 	  and e1' = expr builder e1
 	  and e2' = expr builder e2 in
-	  if t = A.Float then (match op with 
+	  if t = A.Float then (match op with
 	    A.Add     -> L.build_fadd
 	  | A.Sub     -> L.build_fsub
 	  | A.Mult    -> L.build_fmul
-	  | A.Div     -> L.build_fdiv 
+	  | A.Div     -> L.build_fdiv
 	  | A.Equal   -> L.build_fcmp L.Fcmp.Oeq
 	  | A.Neq     -> L.build_fcmp L.Fcmp.One
 	  | A.Less    -> L.build_fcmp L.Fcmp.Olt
@@ -128,7 +149,7 @@ let translate (globals, functions) =
 	  | A.Geq     -> L.build_fcmp L.Fcmp.Oge
 	  | A.And | A.Or ->
 	      raise (Failure "internal error: semant should have rejected and/or on float")
-	  ) e1' e2' "tmp" builder 
+	  ) e1' e2' "tmp" builder
 	  else (match op with
 	  | A.Add     -> L.build_add
 	  | A.Sub     -> L.build_sub
@@ -146,7 +167,7 @@ let translate (globals, functions) =
       | SUnop(op, e) ->
 	  let (t, _) = e and e' = expr builder e in
 	  (match op with
-	    A.Neg when t = A.Float -> L.build_fneg 
+	    A.Neg when t = A.Float -> L.build_fneg
 	  | A.Neg                  -> L.build_neg
           | A.Not                  -> L.build_not) e' "tmp" builder
       | SAssign (s, e) -> let e' = expr builder e in
@@ -154,18 +175,67 @@ let translate (globals, functions) =
       | SCall ("print", [e]) ->
 	  L.build_call printf_func [| int_format_str ; (expr builder e) |]
 	    "print" builder
-      | SCall ("printstr", [e]) -> 
+      | SCall ("printstr", [e]) ->
           L.build_call printf_func [| string_format_str ; (expr builder e) |]
             "printstr" builder
+      | SCall ("rows", [e]) ->
+          let A.Matrix(_, r, _) = expr builder e in L.build_load (L.const_int i32_t r) "rows" builder
+      | SCall ("cols", [e]) ->
+          let A.Matrix(_, _, c) = expr builder e in L.build_load (L.const_int i32_t c) "cols" builder
+      | SMatLit mat -> (match (List.hd (List.hd mat)) with
+          | A.IntLit _ -> let real_order = List.map List.rev mat in
+              let i32_lists = List.map (List.map (expr builder)) real_order in
+              let list_of_arrays = List.map Array.of_list i32_lists in
+              let i32_list_of_arrays = List.map (L.const_array i32_t) list_of_arrays in
+              let array_of_arrays = Array.of_list i32_list_of_arrays in
+              L.const_array (array_t i32_t (List.length (List.hd mat))) array_of_arrays
+          | A.BoolLit _ -> let real_order = List.map List.rev mat in
+              let i1_lists = List.map (List.map (expr builder)) real_order in
+              let list_of_arrays = List.map Array.of_list i1_lists in
+              let i1_list_of_arrays = List.map (L.const_array i1_t) list_of_arrays in
+              let array_of_arrays = Array.of_list i1_list_of_arrays in
+              L.const_array (array_t i1_t (List.length (List.hd mat))) array_of_arrays
+          | A.FloatLit _ -> let real_order = List.map List.rev mat in
+              let float_lists = List.map (List.map (expr builder)) real_order in
+              let list_of_arrays = List.map Array.of_list float_lists in
+              let float_list_of_arrays = List.map (L.const_array flaot_t) list_of_arrays in
+              let array_of_arrays = Array.of_list float_list_of_arrays in
+              L.const_array (array_t float_t (List.length (List.hd mat))) array_of_arrays)
+      | SMatAccess (id, row, col) ->
+          let row = expr builder row
+          and col = expr builder col
+          and reg = L.build_gep (lookup id) [| L.const_int i32_t 0, row, col |] id builder in
+          L.build_load reg id builder
+      | SMatAssign (id, row, col, value) ->
+          let row   = expr builder row
+          and col   = expr builder col
+          and reg   = L.build_gep (lookup id) [| L.const_int i32_t 0, row, col |] id builder
+          and value = expr builder value in
+          L.build_store value reg builder
+      (* | SCall ("size", [e]) ->
+          L.build_call size_func [| (expr builder e) |]
+            "size" builder
+      | SCall ("det", [e]) ->
+          L.build_call det_func [| (expr builder e) |]
+            "det" builder
+      | SCall ("minor", [e]) ->
+          L.build_call minor_func [| (expr builder e) |]
+            "minor" builder
+      | SCall ("inv", [e]) ->
+          L.build_call inv_func [| (expr builder e) |]
+            "inv" builder
+      | SCall ("tr", [e]) ->
+          L.build_call tr_func [| (expr builder e) |]
+            "tr" builder *)
       | SCall (f, act) ->
          let (fdef, fdecl) = StringMap.find f function_decls in
 	 let actuals = List.rev (List.map (expr builder) (List.rev act)) in
-	 let result = (match fdecl.styp with 
+	 let result = (match fdecl.styp with
                         A.Void -> ""
                       | _ -> f ^ "_result") in
          L.build_call fdef (Array.of_list actuals) result builder
     in
-    
+
     (* Each basic block in a program ends with a "terminator" instruction i.e.
     one that ends the basic block. By definition, these instructions must
     indicate which basic block comes next -- they typically yield "void" value
@@ -177,7 +247,7 @@ let translate (globals, functions) =
       match L.block_terminator (L.insertion_block builder) with
 	Some _ -> ()
       | None -> ignore (f builder) in
-    
+
     (* Create a dummy blockent for creating SBlocks in codegen. We already
      * checked declarations and such in semant so what we put in the SBlock
      * doesn't really matter now. *)
@@ -185,7 +255,7 @@ let translate (globals, functions) =
             sparent = None;
             symtbl = Hashtbl.create 1;
     } in
-	
+
     (* Build the code for the given statement; return the builder for
        the statement's successor (i.e., the next instruction will be built
        after the one generated by this call) *)
@@ -199,12 +269,12 @@ let translate (globals, functions) =
                   then (expr builder (t, SAssign(n, e)))
                   else (expr builder (t, SNoexpr))
           in builder
-      | SExpr e -> let _ = expr builder e in builder 
+      | SExpr e -> let _ = expr builder e in builder
       | SReturn e -> let _ = match fdecl.styp with
                               (* Special "return nothing" instr *)
-                              A.Void -> L.build_ret_void builder 
+                              A.Void -> L.build_ret_void builder
                               (* Build return statement *)
-                            | _ -> L.build_ret (expr builder e) builder 
+                            | _ -> L.build_ret (expr builder e) builder
                      in builder
       (* The order that we create and add the basic blocks for an If statement
       doesnt 'really' matter (seemingly). What hooks them up in the right order
@@ -215,14 +285,14 @@ let translate (globals, functions) =
          let bool_val = expr builder predicate in
          (* Add "merge" basic block to our function's list of blocks *)
 	 let merge_bb = L.append_block context "merge" the_function in
-         (* Partial function used to generate branch to merge block *) 
+         (* Partial function used to generate branch to merge block *)
          let branch_instr = L.build_br merge_bb in
 
          (* Same for "then" basic block *)
 	 let then_bb = L.append_block context "then" the_function in
          (* Position builder in "then" block and build the statement *)
          let then_builder = stmt (L.builder_at_end context then_bb) then_stmt in
-         (* Add a branch to the "then" block (to the merge block) 
+         (* Add a branch to the "then" block (to the merge block)
            if a terminator doesn't already exist for the "then" block *)
 	 let () = add_terminal then_builder branch_instr in
 

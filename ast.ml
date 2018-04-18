@@ -5,13 +5,17 @@ type op = Add | Sub | Mult | Exp | ElemMult | Div | ElemDiv | Mod | Equal | Neq
 
 type uop = Neg | Not | Inc | Dec | Trans
 
-type primitive = Int | Bool | Float | String | Void
+(* type primitive = Int | Bool | Float | String | Void *)
 
 type typ =
-    Matrix of primitive * int * int
+    Matrix of typ * int * int
   | Auto
-  | DataType of primitive
-  | MatrixRet of primitive
+  | MatrixRet of typ
+  | Int
+  | Bool
+  | Float
+  | String
+  | Void
 
 type expr =
     IntLit of int
@@ -105,24 +109,27 @@ let rec string_of_expr = function
   | Noexpr -> ""
 
 let string_of_typ = function
-    (* Int -> "int"
+    Int -> "int"
   | Bool -> "bool"
   | Float -> "float"
   | String -> "string"
-  | Matrix -> "matrix"
-  | TMatrix(t) -> string_of_typ t ^ " matrix"
-  | Void -> "void" *)
-    DataType(Int)     -> "int"
+  (* | Matrix -> "matrix" *)
+  (* | TMatrix(t) -> string_of_typ t ^ " matrix" *)
+  | Void -> "void"
+    (* DataType(Int)     -> "int"
   | DataType(Float)   -> "float"
   | DataType(String)  -> "string"
   | DataType(Bool)    -> "bool"
-  | DataType(Void)    -> "void"
+  | DataType(Void)    -> "void" *)
   | Matrix(t, r, c)   -> (match t with
         Int   -> "int matrix (r:" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
       | Float -> "float matrix" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
       | Bool  -> "bool matrix" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
       | String -> "string matrix" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
       | Void  -> "void matrix" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
+      | Matrix(_,_,_) -> "invalid"
+      | Auto -> "invalid"
+      | MatrixRet(_) -> "invalid"
     )
   | MatrixRet(t)  -> (match t with
         Int   -> "int matrix"
@@ -130,6 +137,9 @@ let string_of_typ = function
       | Bool  -> "bool matrix"
       | String -> "string matrix"
       | Void  -> "void matrix"
+      | Matrix(_,_,_) -> "invalid"
+      | Auto -> "invalid"
+      | MatrixRet(_) -> "invalid"
     )
   | Auto -> "auto"
   (* | Array -> "array" *)

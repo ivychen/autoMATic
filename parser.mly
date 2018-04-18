@@ -68,7 +68,11 @@ formal_list:
   | formal_list COMMA typ ID { ($3,$4) :: $1 }
 
 typ:
-    primitive          { DataType($1) }
+    INT                { Int   }
+  | BOOL               { Bool  }
+  | FLOAT              { Float }
+  | STRING             { String }
+  | VOID               { Void  }
   | matrix_type        { $1 }
   | AUTO               { Auto }
   | matrix_ret         { $1 }
