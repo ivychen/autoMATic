@@ -22,7 +22,7 @@ let check (globals, functions) =
       and auto_err = "illegal auto " ^ kind ^ " " ^ snd binding
       in match binding with
         (* No void bindings *)
-        (Void, _) -> raise (Failure void_err)
+        (DataType(Void), _) -> raise (Failure void_err)
         (* No auto bindings *)
       | (Auto, _) -> raise (Failure auto_err)
       | (t, n1) -> (* No duplicate bindings *)
@@ -55,13 +55,13 @@ let check (globals, functions) =
       typ = returntype; fname = name;
       formals = List.mapi (fun idx argtype -> (argtype, "x" ^ string_of_int idx)) argtypes;
       body = [] } map
-    in List.fold_left add_bind StringMap.empty [ ("printstr", [String], Void);
-                                                 ("print", [Int], Void);
-                                                 ("size", [Matrix], Matrix);
-                                                 ("det", [Matrix], Float);
+    in List.fold_left add_bind StringMap.empty [ ("printstr", [DataType(String)], DataType(Void));
+                                                 ("print", [DataType(Int)], DataType(Void));
+                                                 ("size", [MatrixRet(Int)], Matrix(Int,1,2)) ]
+                                                 (* ("det", [Matrix], DataType(Float));
                                                  ("minor", [Matrix; Int; Int], Matrix);
                                                  ("inv", [Matrix], Matrix);
-                                                 ("tr", [Matrix], Float)]
+                                                 ("tr", [Matrix], Float)] *)
   in
 
   (* Add function name to symbol table *)
@@ -99,13 +99,38 @@ let check (globals, functions) =
     (* Make sure no formals are void or duplicates *)
     let formals' = check_binds "formal" func.formals funblk.symtbl in
 
+    (* Matrix checking helpers *)
+    (* Check if param is a matrix or matrix shorthand *)
+    let is_mat m = match m with
+      Matrix(_,_,_) | MatrixRet(_) -> true
+    | _ -> false
+    in
+    (* Return element type of matrix or matrix shorthand *)
+    let mat_typ m = match m with
+      Matrix(t, _, _) | MatrixRet(t) -> t
+    | _ -> Void
+    in
+    (* Return matrix dimensions (row, col) *)
+    let mat_dim m = match m with
+      Matrix(_, r, c) -> (r, c)
+    | _ -> (0, 0)
+    in
+    let data_typ d = match d with
+      DataType(t) -> t
+    | _ -> Void
+    in
     (* Raise an exception if the given rvalue type cannot be assigned to
        the given lvalue type *)
     let check_assign lvaluet rvaluet err =
-       (* let is_mat m = match m with
-          Matrix -> true
-       |  _ -> false
+       let mat_eq a b = if (mat_typ a = mat_typ b) && (mat_dim a = mat_dim b) then true else false
        in
+       (* both sides are matrices with same type and equal dimension *)
+       if is_mat lvaluet && is_mat rvaluet && mat_eq lvaluet rvaluet then lvaluet
+       (* LHS is non-matrix, RHS is matrix -> LHS *)
+       else if not (is_mat lvaluet) && is_mat rvaluet && (data_typ lvaluet = mat_typ rvaluet) then lvaluet
+       (* LHS is matrix, RHS is non-matrix -> LHS *)
+       else if is_mat lvaluet && not (is_mat rvaluet) && (data_typ lvaluet = mat_typ rvaluet) then lvaluet
+       (*
        let is_matt m = match m with
           TMatrix(_) -> true
        |  _ -> false
@@ -118,7 +143,8 @@ let check (globals, functions) =
        else if is_matt lvaluet && ((mat_elemt lvaluet) = rvaluet) then lvaluet
        else if is_matt rvaluet && ((mat_elemt rvaluet) = lvaluet) then lvaluet *)
        (* else  *)
-       if lvaluet = rvaluet then lvaluet else raise (Failure err)
+       else if lvaluet = rvaluet then lvaluet
+       else raise (Failure err)
     in
 
     (* Return a variable from our local symbol table *)
@@ -146,34 +172,8 @@ let check (globals, functions) =
       | Assign(var, e) as ex ->
           let lt = type_of_identifier var blk.symtbl
           and (rt, e') = expr blk e in
-          (* If matrix type, use type of matrix element to check *)
-          (* let is_mat m =
-            match m with
-              Matrix -> true
-            | _ -> false
-          in
-          let is_matt m =
-            match m with
-              TMatrix(_) -> true
-            | _ -> false
-          in
-          (* Element type if TMatrix *)
-          let ety' =
-            match rt with
-              TMatrix(t) -> t
-            | _ -> rt
-          in
-          (* Matrix right type *)
-          let mrt =
-            (*  If matrix, extract the matrix element type *)
-            match e' with
-              SMatLit(_) -> TMatrix(ety)
-            | SMatAccess(_, _, _) | SMatAssign(_, _, _, _) when is_mat rt -> ety
-            | _ -> rt
-          in
-
           (* If assigning matrix literal, update the symbtbl entry for the matrix element type (ety) field *)
-          if (is_mat lt && is_matt rt) then
+          (* if (is_mat lt && is_matt rt) then
             let _ = print_string "okay updating type" in
             let entry = {
               ty = type_of_identifier var blk.symtbl;
@@ -185,14 +185,13 @@ let check (globals, functions) =
                     else raise(Failure ("undeclared identifier " ^ var))
             in *)
           let err = "illegal assignment " ^ string_of_typ lt ^ " = " ^
-            string_of_typ (if is_mat rt then mrt else rt) ^ " in " ^ string_of_expr ex
-          in (check_assign lt (if is_mat rt then mrt else if is_matt rt then Matrix else rt) err,
-              SAssign(var, ((if is_mat rt then mrt else if is_matt rt then Matrix else rt), e')))
+            string_of_typ rt ^ " in " ^ string_of_expr ex
+          in (check_assign lt rt err, SAssign(var, (rt, e')))
       | Unop(op, e) as ex ->
           let (t, e') = expr blk e in
           let ty = match op with
-            Neg when t = Int || t = Float -> t
-          | Not when t = Bool -> Bool
+            Neg when t = DataType(Int) || t = DataType(Float) -> t
+          | Not when t = DataType(Bool) -> DataType(Bool)
           | _ -> raise (Failure ("illegal unary operator " ^
                                  string_of_uop op ^ string_of_typ t ^
                                  " in " ^ string_of_expr ex))
@@ -204,12 +203,12 @@ let check (globals, functions) =
           let same = t1 = t2 in
           (* Determine expression type based on operator and operand types *)
           let ty = match op with
-            Add | Sub | Mult | Div when same && t1 = Int   -> Int
-          | Add | Sub | Mult | Div when same && t1 = Float -> Float
-          | Equal | Neq            when same               -> Bool
+            Add | Sub | Mult | Div when same && t1 = DataType(Int)   -> DataType(Int)
+          | Add | Sub | Mult | Div when same && t1 = DataType(Float) -> DataType(Float)
+          | Equal | Neq            when same               -> DataType(Bool)
           | Less | Leq | Greater | Geq
-                     when same && (t1 = Int || t1 = Float) -> Bool
-          | And | Or when same && t1 = Bool -> Bool
+                     when same && (t1 = DataType(Int) || t1 = DataType(Float)) -> DataType(Bool)
+          | And | Or when same && t1 = DataType(Bool) -> DataType(Bool)
           | _ -> raise (
 	      Failure ("illegal binary operator " ^
                        string_of_typ t1 ^ " " ^ string_of_op op ^ " " ^
@@ -266,15 +265,15 @@ let check (globals, functions) =
           let se2 = expr blk e2 in
           let ty = type_of_identifier s blk.symtbl in
           (* Check that access indices are integers *)
-          let _ = (match (type_of_identifier e1) with
+          let _ = (match (fst se1) with
             DataType(Int) -> DataType(Int)
           | _ -> raise (Failure ("attempting to access with a non-integer type")))
-          and _ = (match (type_of_identifier e2) with
+          and _ = (match (fst se2) with
             DataType(Int) -> DataType(Int)
           | _ -> raise (Failure ("attempting to access with a non-integer type"))) in
           (* Semantically checked matrix assignment *)
           (match ty with
-              Matrix(t, r, c)  ->  (Matrix(t, r, c), SMatAccess(s, se1, se2))
+              Matrix(t, _, _) | MatrixRet(t) ->  (DataType(t), SMatAccess(s, se1, se2))
             | _       ->  raise(Failure("Cannot access elements of non-matrix type " ^ string_of_typ ty ^ " in " ^ string_of_expr ex)))
 
       | MatAssign(s,e1,e2,e3) as ex ->
@@ -288,17 +287,17 @@ let check (globals, functions) =
                            else if t = Float then Float
                            else if t = Bool then Bool
                            else raise(Failure("Right-hand type is not Int, Bool or Float"))
-          | Matrix(p)   -> if p = Int then Int
+          | Matrix(p,_,_)   -> if p = Int then Int
                            else if p = Float then Float
                            else if p = Bool then Bool
                            else raise(Failure("Right-hand type is not Int, Bool or Float"))
           | _           -> raise(Failure("Invalid matrix assignment"))
           )
-          in let rhs_ty = extract_ty e3 in
+          in let rhs_ty = extract_ty (fst se3) in
           (* Matrix type *)
           let ty = type_of_identifier s blk.symtbl in
           (match ty with
-              Matrix(t, r, c)  -> if t = rhs_ty then (Matrix(t, r, c), SMatAssign(s, se1, se2, se3))
+              Matrix(t, _, _) | MatrixRet(t)  -> if t = rhs_ty then (DataType(t), SMatAssign(s, se1, se2, se3))
                                   else raise(Failure("Invalid matrix assignment"))
             | _       ->  raise(Failure("Cannot assign incompatible element of " ^ string_of_typ ty ^ " in " ^ string_of_expr ex)))
 
@@ -313,10 +312,13 @@ let check (globals, functions) =
             let (et, e') = expr blk e in
             let err = "illegal argument found " ^ string_of_typ et ^
               " expected " ^ string_of_typ ft ^ " in " ^ string_of_expr e in
+            (* Auto declr param check *)
             let auto_err = "function " ^ fname ^
               " has illegal auto-declared parameter " ^ n
+            (* Matrix param check *)
+            in let ft' = if is_mat et && is_mat ft && (mat_typ et = mat_typ ft) then et else ft
             in let _ = if ft = Auto then raise (Failure auto_err)
-            in (check_assign ft et err, e')
+            in (check_assign ft' et err, e')
           in
           let args' = List.map2 check_call fd.formals args
           in (fd.typ, SCall(fname, args'))
@@ -325,7 +327,7 @@ let check (globals, functions) =
     let check_bool_expr blk e =
       let (t', e') = expr blk e
       and err = "expected Boolean expression in " ^ string_of_expr e
-      in if t' != Bool then raise (Failure err) else (t', e')
+      in if t' != DataType(Bool) then raise (Failure err) else (t', e')
     in
 
     (* Return a semantically-checked statement i.e. containing sexprs *)
@@ -365,12 +367,14 @@ let check (globals, functions) =
 	  SFor(expr blk e1, check_bool_expr blk e2, expr blk e3, check_stmt blk st)
       | While(p, s) -> SWhile(check_bool_expr blk p, check_stmt blk s)
       | Return e -> let (t, e') = expr blk e in
+        (* If function return type is AUto, update return type to binding *)
         if func.typ = Auto then func.typ <- t;
-
-        if t = func.typ then SReturn (func.typ, e')
-        else raise (
-	  Failure ("return gives " ^ string_of_typ t ^ " expected " ^
-		   string_of_typ func.typ ^ " in " ^ string_of_expr e))
+        (* If function return type is a matrix, update return to specific matrix binding *)
+        if is_mat func.typ && is_mat t && (mat_typ func.typ = mat_typ t) then func.typ <- t;
+        (* If returning matrix, check if type match *)
+        if is_mat func.typ && is_mat t && (mat_typ func.typ = mat_typ t) then SReturn(t, e')
+        else if t = func.typ then SReturn(func.typ, e')
+        else raise (Failure ("return gives " ^ string_of_typ t ^ " expected " ^ string_of_typ func.typ ^ " in " ^ string_of_expr e))
 
 	    (* A block is correct if each statement is correct and nothing
 	       follows any Return statement.  Nested blocks are flattened. *)
@@ -399,7 +403,7 @@ let check (globals, functions) =
         SBlock(_, bi) -> bi
       | _ -> raise (Failure err)
 
-    in let _ = (if func.typ = Auto then func.typ <- Void);
+    in let _ = (if func.typ = Auto then func.typ <- DataType(Void));
 
     in (* body of check_function *)
     { styp = func.typ;

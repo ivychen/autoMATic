@@ -11,4 +11,5 @@ void asnMat(int matrix M) {
 int main() {
     int matrix[3][3] M;
     M = [[0,0,0]; [0,0,0]; [0,0,0]];
+		asnMat(M);
 }

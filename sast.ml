@@ -105,7 +105,12 @@ let rec string_of_sstmt = function
 
 let string_of_sfdecl fdecl =
   string_of_typ fdecl.styp ^ " " ^
-  fdecl.sfname ^ "(" ^ String.concat ", " (List.map snd fdecl.sformals) ^
+  fdecl.sfname ^ "(" ^ String.concat ", " (
+    List.map string_of_tuple (
+      List.combine (List.map snd fdecl.sformals) (List.map fst fdecl.sformals)
+      )
+    ) ^
+    (* (List.map snd fdecl.sformals) ^ *)
   ")\n{\n" ^
   String.concat "" (List.map string_of_sstmt fdecl.sbody) ^
   "}\n"
