@@ -59,6 +59,8 @@ let check (globals, functions) =
                                                  ("print", [Int], Void);
                                                  ("size", [MatrixRet(Int)], Matrix(Int,1,2)) ]
                                                  (* ("det", [Matrix], DataType(Float));
+                                                 ("printflt", [Float], Void);
+                                                 ("size", [Matrix], Matrix);
                                                  ("minor", [Matrix; Int; Int], Matrix);
                                                  ("inv", [Matrix], Matrix);
                                                  ("tr", [Matrix], Float)] *)
@@ -95,6 +97,9 @@ let check (globals, functions) =
       symtbl = Hashtbl.copy glob_block.symtbl;
     }
     in
+
+    (* Keeps track of levels of loop nesting for break/continue statements *)
+    let loop_depth = ref 0 in
 
     (* Make sure no formals are void or duplicates *)
     let formals' = check_binds "formal" func.formals funblk.symtbl in
@@ -190,9 +195,9 @@ let check (globals, functions) =
           let same = t1 = t2 in
           (* Determine expression type based on operator and operand types *)
           let ty = match op with
-            Add | Sub | Mult | Div when same && t1 = Int   -> Int
-          | Add | Sub | Mult | Div when same && t1 = Float -> Float
-          | Equal | Neq            when same               -> Bool
+            Add | Sub | Mult | Div | Mod when same && t1 = Int   -> Int
+          | Add | Sub | Mult | Div | Mod when same && t1 = Float -> Float
+          | Equal | Neq                  when same               -> Bool
           | Less | Leq | Greater | Geq
                      when same && (t1 = Int || t1 = Float) -> Bool
           | And | Or when same && t1 = Bool -> Bool
@@ -303,9 +308,11 @@ let check (globals, functions) =
               " has illegal auto-declared parameter " ^ n
             (* Matrix param check *)
             in let ft' = if is_mat et && is_mat ft && (mat_typ et = mat_typ ft) then et else ft
+            in let void_err = "illegal void formal " ^ n
             in let _ = if ft = Auto then raise (Failure auto_err)
+            in let _ = if ft = Void then raise (Failure void_err)
             in (check_assign ft' et err, e')
-          in
+          in 
           let args' = List.map2 check_call fd.formals args
           in (fd.typ, SCall(fname, args'))
     in
@@ -350,8 +357,19 @@ let check (globals, functions) =
           else SVDecl((check_assign t' et type_err), n, (et, e'))
       | If(p, b1, b2) -> SIf(check_bool_expr blk p, check_stmt blk b1, check_stmt blk b2)
       | For(e1, e2, e3, st) ->
+          let _ = loop_depth := !loop_depth + 1 in
 	  SFor(expr blk e1, check_bool_expr blk e2, expr blk e3, check_stmt blk st)
-      | While(p, s) -> SWhile(check_bool_expr blk p, check_stmt blk s)
+      | While(p, s) ->
+          let _ = loop_depth := !loop_depth + 1 in
+          SWhile(check_bool_expr blk p, check_stmt blk s)
+      | Continue ->
+        if !loop_depth = 0 then raise (Failure "Attempted to call continue without being in a loop")
+        else SContinue
+      | Break n ->
+        if !loop_depth = 0 then raise (Failure "Attempted to break out of loop without being in a loop")
+        else if n > !loop_depth then raise (Failure "Count on 'break' call too large for loop depth")
+        else if n < 1 then raise (Failure "Cannot break out of less than one level of looping")
+        else SBreak n
       | Return e -> let (t, e') = expr blk e in
         (* If function return type is AUto, update return type to binding *)
         if func.typ = Auto then func.typ <- t;

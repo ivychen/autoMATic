@@ -1,0 +1,12 @@
+int main() {
+	int i;
+	for (i = 0; i < 12; i = i + 1) {
+		if (i == 10)
+			break;
+
+		if (i % 2 == 0)
+			print(i);
+	}
+
+	return 0;
+}

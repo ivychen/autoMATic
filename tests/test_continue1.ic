@@ -1,0 +1,14 @@
+int main() {
+	int i;
+	for (i = 0; i < 15; i = i + 1) {
+                if (i == 1 or i == 4 or i == 7) continue;
+		if (i == 11) continue;
+		if (i != 13) {
+			if (i != 5) { continue; }
+		}
+
+		print(i);
+	}
+
+	return 0;
+}

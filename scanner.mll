@@ -33,6 +33,7 @@ rule token = parse
 | "'"      { TRANSPOSE }
 | '%'      { MOD }
 | ':'      { SLICE }
+| ":="     { AUTODECL }
 | '='      { ASSIGN }
 | "=="     { EQ }
 | "!="     { NEQ }
@@ -40,17 +41,18 @@ rule token = parse
 | "<="     { LEQ }
 | ">"      { GT }
 | ">="     { GEQ }
-| "and"    { NOT }
+| "not"    { NOT }
 | '.'      { DOT }
 (* ---------- CONTROL FLOW -------- *)
 | "and"    { AND }
 | "or"     { OR }
 | "if"     { IF }
 | "else"   { ELSE }
-| "elif"   { ELIF }
 | "for"    { FOR }
 | "while"  { WHILE }
 | "return" { RETURN }
+| "break"  { BREAK }
+| "continue" { CONTINUE }
 (* ---------- TYPES ---------- *)
 | "int"    { INT }
 | "bool"   { BOOL }

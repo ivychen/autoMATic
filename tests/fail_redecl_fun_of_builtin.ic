@@ -1,0 +1,8 @@
+void print(int x) {
+	printstr("Uh oh!");
+}
+
+int main() {
+	print(7);
+	return 0;
+}

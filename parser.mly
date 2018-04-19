@@ -5,11 +5,9 @@ open Ast
 %}
 
 %token SEMI LPAREN RPAREN LBRACE RBRACE COMMA LBRACKET RBRACKET PIPE
-%token PLUS PLUSPLUS MINUS MINUSMINUS TIMES EXP ELEMTIMES DIVIDE ELEMDIVIDE TRANSPOSE MOD SLICE DOT ASSIGN
-%token NOT EQ NEQ LT LEQ GT GEQ AND OR TRUE FALSE
-%token RETURN IF ELSE ELIF FOR WHILE INT BOOL FLOAT VOID STRING
-/* tokens for matrix, number of rows and columns */
-%token MATRIX
+%token PLUS PLUSPLUS MINUS MINUSMINUS TIMES EXP ELEMTIMES DIVIDE ELEMDIVIDE TRANSPOSE MOD SLICE DOT ASSIGN AUTODECL
+%token NOT EQ NEQ LT LEQ GT GEQ AND OR TRUE FALSE BREAK CONTINUE
+%token RETURN IF ELSE FOR WHILE INT BOOL FLOAT VOID MATRIX STRING
 /* %token ARRAY */
 %token AUTO
 %token <int> LITERAL
@@ -24,8 +22,8 @@ open Ast
 
 %nonassoc NOELSE
 %nonassoc ELSE
-%nonassoc ELIF
 %right ASSIGN
+%right AUTODECL
 %left COMMA
 %nonassoc SLICE
 %left OR
@@ -107,8 +105,12 @@ stmt_list:
 stmt:
     typ ID SEMI                             { VDecl($1, $2, Noexpr) }
   | typ ID ASSIGN expr SEMI                 { VDecl($1, $2, $4)     }
+  | ID AUTODECL expr SEMI                   { VDecl(Auto, $1, $3)   }
   | expr SEMI                               { Expr $1               }
   | RETURN expr_opt SEMI                    { Return $2             }
+  | CONTINUE SEMI                           { Continue              }
+  | BREAK SEMI                              { Break 1               }
+  | BREAK LITERAL SEMI                      { Break $2              }
   | LBRACE stmt_list RBRACE                 { Block(List.rev $2)    }
   | IF LPAREN expr RPAREN stmt %prec NOELSE { If($3, $5, Block([])) }
   | IF LPAREN expr RPAREN stmt ELSE stmt    { If($3, $5, $7)        }

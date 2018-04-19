@@ -8,3 +8,5 @@ automatic.native
 *.o
 *.exe
 *.S
+bisect*.out
+coverage/

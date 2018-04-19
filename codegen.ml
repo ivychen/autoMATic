@@ -96,11 +96,16 @@ let translate (globals, functions) =
     let builder = L.builder_at_end context (L.entry_block the_function) in
 
     let int_format_str = L.build_global_stringptr "%d\n" "fmt" builder
+    and float_format_str = L.build_global_stringptr "%f\n" "fmt" builder
     and string_format_str = L.build_global_stringptr "%s\n" "fmt" builder in
+
+    (* Keep track of jump locations for breaking out of/continuing loops *)
+    let continue_stack = ref []
+    and break_stack = ref [] in
 
     (* Allocate space for any locally declared variables and add the
      * resulting registers to our map *)
-    let add_local m (t, n) =
+    let add_local m (t, n) builder =
       let local_var = L.build_alloca (ltype_of_typ t) n builder
       in Hashtbl.add m n local_var
     in
@@ -159,6 +164,7 @@ let translate (globals, functions) =
 	  | A.Leq     -> L.build_fcmp L.Fcmp.Ole
 	  | A.Greater -> L.build_fcmp L.Fcmp.Ogt
 	  | A.Geq     -> L.build_fcmp L.Fcmp.Oge
+          | A.Mod     -> L.build_frem
 	  | A.And | A.Or ->
 	      raise (Failure "internal error: semant should have rejected and/or on float")
           | _ -> raise (Failure "internal error: operator not allowed")
@@ -176,7 +182,8 @@ let translate (globals, functions) =
 	  | A.Leq     -> L.build_icmp L.Icmp.Sle
 	  | A.Greater -> L.build_icmp L.Icmp.Sgt
 	  | A.Geq     -> L.build_icmp L.Icmp.Sge
-          | _ -> raise (Failure "internal error: operator not allowed")
+    | A.Mod     -> L.build_srem
+    | _ -> raise (Failure "internal error: operator not allowed")
 	  ) e1' e2' "tmp" builder
       | SUnop(op, e) ->
 	  let (t, _) = e and e' = expr builder e in
@@ -245,6 +252,9 @@ let translate (globals, functions) =
       | SCall ("tr", [e]) ->
           L.build_call tr_func [| (expr builder e) |]
             "tr" builder *)
+      | SCall ("printflt", [e]) ->
+          L.build_call printf_func [| float_format_str ; (expr builder e) |]
+            "printflt" builder
       | SCall (f, act) ->
          let (fdef, fdecl) = StringMap.find f function_decls in
 	 let actuals = List.rev (List.map (expr builder) (List.rev act)) in
@@ -282,12 +292,14 @@ let translate (globals, functions) =
 	SBlock (sl, _) -> List.fold_left stmt builder sl
         (* Generate code for this expression, return resulting builder *)
       | SVDecl (t, n, e) ->
-          let _ = add_local local_vars (t, n) in
+          let _ = add_local local_vars (t, n) builder in
           let _ = if (snd e) != SNoexpr
                   then (expr builder (t, SAssign(n, e)))
                   else (expr builder (t, SNoexpr))
           in builder
-      | SExpr e -> let _ = expr builder e in builder
+      | SExpr e -> let _ = expr builder e in builder 
+      | SContinue -> let _ = L.build_br (List.hd !continue_stack) builder in builder
+      | SBreak n -> let _ = L.build_br (List.nth !break_stack (n - 1)) builder in builder
       | SReturn e -> let _ = match fdecl.styp with
                               (* Special "return nothing" instr *)
                               A.Void -> L.build_ret_void builder
@@ -333,12 +345,8 @@ let translate (globals, functions) =
           (* In current block, branch to predicate to execute the condition *)
 	  let _ = L.build_br pred_bb builder in
 
-          (* Create the body's block, generate the code for it, and add a branch
-          back to the predicate block (we always jump back at the end of a while
-          loop's body, unless we returned or something) *)
+          (* Make room for a body block for now. We'll build it later. *)
 	  let body_bb = L.append_block context "while_body" the_function in
-          let while_builder = stmt (L.builder_at_end context body_bb) body in
-	  let () = add_terminal while_builder (L.build_br pred_bb) in
 
           (* Generate the predicate code in the predicate block *)
 	  let pred_builder = L.builder_at_end context pred_bb in
@@ -347,11 +355,63 @@ let translate (globals, functions) =
           (* Hook everything up *)
 	  let merge_bb = L.append_block context "merge" the_function in
 	  let _ = L.build_cond_br bool_val body_bb merge_bb pred_builder in
-	  L.builder_at_end context merge_bb
+          let _ = L.builder_at_end context merge_bb in
 
-      (* Implement for loops as while loops! *)
-      | SFor (e1, e2, e3, body) -> stmt builder
-	    ( SBlock ([SExpr e1 ; SWhile (e2, SBlock ([body ; SExpr e3], db)) ], db) )
+          (* Add the predicate and merge blocks to our lists of jump points *)
+          let _ = continue_stack := pred_bb :: !continue_stack in
+          let _ = break_stack := merge_bb :: !break_stack in
+
+          (* Create the body's block, generate the code for it, and add a branch
+          back to the predicate block (we always jump back at the end of a while
+          loop's body, unless we returned or something) *)
+          let while_builder = stmt (L.builder_at_end context body_bb) body in
+
+          (* Now that we've exited a loop level, pop the jump stacks *)
+          let _ = continue_stack := List.tl !continue_stack in
+          let _ = break_stack := List.tl !break_stack in
+
+	  let () = add_terminal while_builder (L.build_br pred_bb)
+          in L.builder_at_end context merge_bb
+
+      (* To support `continue` in for loops, we need to reimplement SWhile with
+       * the post-loop action added to the merge basic block *)
+      | SFor (preact, predicate, postact, body) ->
+          (* Emit preact first before we continue *)
+          let _ = expr builder preact in
+
+	  let pred_bb = L.append_block context "while" the_function in
+	  let _ = L.build_br pred_bb builder in
+
+	  let body_bb = L.append_block context "while_body" the_function in
+
+	  let pred_builder = L.builder_at_end context pred_bb in
+	  let bool_val = expr pred_builder predicate in
+
+	  let merge_bb = L.append_block context "merge" the_function in
+	  let _ = L.build_cond_br bool_val body_bb merge_bb pred_builder in
+          let _ = L.builder_at_end context merge_bb in
+
+          (* Emit a separate block for the post-action that continue statements
+           * can branch to *)
+          let postact_bb = L.append_block context "postact" the_function in
+
+          (* Add the post-action and merge blocks to our lists of jump points *)
+          let _ = continue_stack := postact_bb :: !continue_stack in
+          let _ = break_stack := merge_bb :: !break_stack in
+
+          let while_builder = stmt (L.builder_at_end context body_bb) body in
+
+          (* Pop the jump stacks *)
+          let _ = continue_stack := List.tl !continue_stack in
+          let _ = break_stack := List.tl !break_stack in
+
+          (* Emit the post-action itself *)
+          let postact_builder = L.builder_at_end context postact_bb in
+          let _ = expr postact_builder postact in
+
+          let _ = add_terminal postact_builder (L.build_br pred_bb) in
+	  let () = add_terminal while_builder (L.build_br postact_bb)
+          in L.builder_at_end context merge_bb
     in
 
     (* Build the code for each statement in the function *)

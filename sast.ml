@@ -39,6 +39,8 @@ type sstmt =
   | SVDecl of typ * string * sexpr
   | SExpr of sexpr
   | SReturn of sexpr
+  | SContinue
+  | SBreak of int
   | SIf of sexpr * sstmt * sstmt
   | SFor of sexpr * sexpr * sexpr * sstmt
   | SWhile of sexpr * sstmt
@@ -91,6 +93,8 @@ let rec string_of_sstmt = function
       "{\n" ^ String.concat "" (List.map string_of_sstmt stmts) ^ "}\n"
   | SExpr(expr) -> string_of_sexpr expr ^ ";\n";
   | SReturn(expr) -> "return " ^ string_of_sexpr expr ^ ";\n";
+  | SBreak(n) -> "break " ^ string_of_int n ^ ";\n";
+  | SContinue -> "continue;\n";
   | SIf(e, s, SBlock([], _)) ->
       "if (" ^ string_of_sexpr e ^ ")\n" ^ string_of_sstmt s
   | SIf(e, s1, s2) ->  "if (" ^ string_of_sexpr e ^ ")\n" ^

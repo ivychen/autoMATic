@@ -1,0 +1,7 @@
+void test(void x) {
+}
+
+int main() {
+	test(5);
+	return 0;
+}
