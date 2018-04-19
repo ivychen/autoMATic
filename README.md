@@ -34,7 +34,7 @@ Run `./test.sh`
 **Do not** run './testgen.sh'
 
 ### Additional tests submitted for Deliverable #4
-"Positive" test programs have names that begin with `test_` and "negative" test programs have names that begin with `fail_`; the positive test programs are listed first. Whether or not the feature it tests is new (did not originate in MicroC) is indicated after the test program name. Tests can be found in `/tests`.
+"Positive" test programs have names that begin with `test_` and "negative" test programs have names that begin with `fail_`; the positive test programs are listed first. Whether or not the feature it tests is new (did not originate in MicroC) is indicated after the test program name. Tests can be found in `/tests`. To run all tests, execute the following command: `sh test.sh`.
 1. `test_auto_fun1.ic` (new) tests the `auto` keyword in function declarations. `auto` forces the compiler to determine the return type of the function dynamically.
 2. `test_break1.ic` (new) tests the `break` keyword in a while-loop. `break` immediately terminates the innermost loop.
 3. `test_scope1.ic` (new) tests the reassignment of a variable in a nested block. This is part of our implementation of lexical scoping.
