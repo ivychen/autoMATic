@@ -57,13 +57,13 @@ let check (globals, functions) =
       body = [] } map
     in List.fold_left add_bind StringMap.empty [ ("printstr", [String], Void);
                                                  ("print", [Int], Void);
-                                                 ("size", [MatrixRet(Int)], Matrix(Int,1,2)) ]
-                                                 (* ("det", [Matrix], DataType(Float));
+                                                 ("size", [MatrixRet(Int)], Matrix(Int,1,2));
+                                                 (* ("det", [Matrix], DataType(Float)); *)
                                                  ("printflt", [Float], Void);
-                                                 ("size", [Matrix], Matrix);
+                                                 (* ("size", [Matrix], Matrix);
                                                  ("minor", [Matrix; Int; Int], Matrix);
                                                  ("inv", [Matrix], Matrix);
-                                                 ("tr", [Matrix], Float)] *)
+                                                 ("tr", [Matrix], Float)] *) ];
   in
 
   (* Add function name to symbol table *)
