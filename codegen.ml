@@ -46,8 +46,9 @@ let translate (globals, functions) =
                                         | A.Int   -> array_t (array_t i32_t cols)   rows
                                         | A.Bool  -> array_t (array_t i1_t cols)    rows
                                         | A.Float -> array_t (array_t float_t cols) rows
-                                        | _       -> raise (Failure "syntax error: invalid matrix type"))
+                                        | _       -> raise (Failure "internal error: invalid matrix type"))
     | A.Auto   -> (raise (Failure "internal error: unresolved autodecl"))
+    |_ -> raise (Failure "internal error: undefined type")
   in
 
   (* Declare each global variable; remember its value in a map *)
@@ -124,6 +125,17 @@ let translate (globals, functions) =
                    with Not_found -> StringMap.find n global_vars
     in
 
+    (* let check_function = 
+        List.fold_left (fun m (t, n) -> StringMap.add n t m) 
+        StringMap.empty (globals @ fdecl.sformals)
+    in
+    
+    let type_of_id s =
+        let symbols = check_function in 
+        try StringMap.find s symbols
+        with Not_found -> raise (Failure "symbol not found")
+    in *)
+
     (* Construct code for an expression; return its value *)
     let rec expr builder (_, e) = match e with
 	SIntLit i -> L.const_int i32_t i
@@ -149,6 +161,7 @@ let translate (globals, functions) =
 	  | A.Geq     -> L.build_fcmp L.Fcmp.Oge
 	  | A.And | A.Or ->
 	      raise (Failure "internal error: semant should have rejected and/or on float")
+          | _ -> raise (Failure "internal error: operator not allowed")
 	  ) e1' e2' "tmp" builder
 	  else (match op with
 	  | A.Add     -> L.build_add
@@ -163,13 +176,15 @@ let translate (globals, functions) =
 	  | A.Leq     -> L.build_icmp L.Icmp.Sle
 	  | A.Greater -> L.build_icmp L.Icmp.Sgt
 	  | A.Geq     -> L.build_icmp L.Icmp.Sge
+          | _ -> raise (Failure "internal error: operator not allowed")
 	  ) e1' e2' "tmp" builder
       | SUnop(op, e) ->
 	  let (t, _) = e and e' = expr builder e in
 	  (match op with
 	    A.Neg when t = A.Float -> L.build_fneg
 	  | A.Neg                  -> L.build_neg
-          | A.Not                  -> L.build_not) e' "tmp" builder
+          | A.Not                  -> L.build_not           
+          | _ -> raise (Failure "internal error: operator not allowed")) e' "tmp" builder
       | SAssign (s, e) -> let e' = expr builder e in
                           let _  = L.build_store e' (lookup s) builder in e'
       | SCall ("print", [e]) ->
@@ -178,39 +193,42 @@ let translate (globals, functions) =
       | SCall ("printstr", [e]) ->
           L.build_call printf_func [| string_format_str ; (expr builder e) |]
             "printstr" builder
-      | SCall ("rows", [e]) ->
-          let A.Matrix(_, r, _) = expr builder e in L.build_load (L.const_int i32_t r) "rows" builder
-      | SCall ("cols", [e]) ->
-          let A.Matrix(_, _, c) = expr builder e in L.build_load (L.const_int i32_t c) "cols" builder
-      | SMatLit mat -> (match (List.hd (List.hd mat)) with
-          | A.IntLit _ -> let real_order = List.map List.rev mat in
+      | SCall ("rows", [e]) -> let (typ, _) = e in (match typ with
+          | A.Matrix(_, r, _) -> L.const_int i32_t r
+          | _ -> raise (Failure "error: invalid use of rows"))
+      | SCall ("cols", [e]) -> let (typ, _) = e in (match typ with
+          | A.Matrix(_, _, c) -> L.const_int i32_t c
+          | _ -> raise (Failure "error: invalid use of cols"))
+      | SMatLit mat -> let (_, sx) = List.hd (List.hd mat) in (match sx with
+          | SIntLit _ -> let real_order = List.map List.rev mat in
               let i32_lists = List.map (List.map (expr builder)) real_order in
               let list_of_arrays = List.map Array.of_list i32_lists in
               let i32_list_of_arrays = List.map (L.const_array i32_t) list_of_arrays in
               let array_of_arrays = Array.of_list i32_list_of_arrays in
               L.const_array (array_t i32_t (List.length (List.hd mat))) array_of_arrays
-          | A.BoolLit _ -> let real_order = List.map List.rev mat in
+          | SBoolLit _ -> let real_order = List.map List.rev mat in
               let i1_lists = List.map (List.map (expr builder)) real_order in
               let list_of_arrays = List.map Array.of_list i1_lists in
               let i1_list_of_arrays = List.map (L.const_array i1_t) list_of_arrays in
               let array_of_arrays = Array.of_list i1_list_of_arrays in
               L.const_array (array_t i1_t (List.length (List.hd mat))) array_of_arrays
-          | A.FloatLit _ -> let real_order = List.map List.rev mat in
+          | SFloatLit _ -> let real_order = List.map List.rev mat in
               let float_lists = List.map (List.map (expr builder)) real_order in
               let list_of_arrays = List.map Array.of_list float_lists in
-              let float_list_of_arrays = List.map (L.const_array flaot_t) list_of_arrays in
+              let float_list_of_arrays = List.map (L.const_array float_t) list_of_arrays in
               let array_of_arrays = Array.of_list float_list_of_arrays in
-              L.const_array (array_t float_t (List.length (List.hd mat))) array_of_arrays)
-      | SMatAccess (id, row, col) =
-          let row = expr builder row
-          and col = expr builder col
-          and reg = L.build_gep (lookup id) [| L.const_int i32_t 0, row, col |] id builder in
+              L.const_array (array_t float_t (List.length (List.hd mat))) array_of_arrays
+          | _ -> raise (Failure "invalid matrix type"))
+      | SMatAccess (id, row, col) ->
+          let row = expr builder row in
+          let col = expr builder col in
+          let reg = L.build_gep (lookup id) [| L.const_int i32_t 0; row; col |] id builder in
           L.build_load reg id builder
-      | SMatAssign (id, row, col, value) =
-          let row   = expr builder row
-          and col   = expr builder col
-          and reg   = L.build_gep (lookup id) [| L.const_int i32_t 0, row, col |] id builder
-          and value = expr builder value in
+      | SMatAssign (id, row, col, value) ->
+          let row   = expr builder row in 
+          let col   = expr builder col in
+          let reg   = L.build_gep (lookup id) [| L.const_int i32_t 0; row; col |] id builder in
+          let value = expr builder value in
           L.build_store value reg builder
       (* | SCall ("size", [e]) ->
           L.build_call size_func [| (expr builder e) |]
