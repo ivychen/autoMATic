@@ -150,53 +150,75 @@ let translate (globals, functions) =
       | SNoexpr -> L.const_int i32_t 0
       | SId s -> L.build_load (lookup s) s builder
       | SBinop (e1, op, e2) ->
-        let (t, _) = e1
-        and e1' = expr builder e1
-        and e2' = expr builder e2 in
-        (* Binary float operations *)
-        if t = A.Float then (match op with
-      	    A.Add     -> L.build_fadd
-      	  | A.Sub     -> L.build_fsub
-      	  | A.Mult    -> L.build_fmul
-      	  | A.Div     -> L.build_fdiv
-      	  | A.Equal   -> L.build_fcmp L.Fcmp.Oeq
-      	  | A.Neq     -> L.build_fcmp L.Fcmp.One
-      	  | A.Less    -> L.build_fcmp L.Fcmp.Olt
-      	  | A.Leq     -> L.build_fcmp L.Fcmp.Ole
-      	  | A.Greater -> L.build_fcmp L.Fcmp.Ogt
-      	  | A.Geq     -> L.build_fcmp L.Fcmp.Oge
-          | A.Mod     -> L.build_frem
-      	  | A.And | A.Or ->
-      	      raise (Failure "internal error: semant should have rejected and/or on float")
-          | _ -> raise (Failure "internal error: operator not allowed")
-      	  ) e1' e2' "tmp" builder
-      	  else (match op with
-      	  | A.Add     -> L.build_add
-      	  | A.Sub     -> L.build_sub
-      	  | A.Mult    -> L.build_mul
-          | A.Div     -> L.build_sdiv
-      	  | A.And     -> L.build_and
-      	  | A.Or      -> L.build_or
-      	  | A.Equal   -> L.build_icmp L.Icmp.Eq
-      	  | A.Neq     -> L.build_icmp L.Icmp.Ne
-      	  | A.Less    -> L.build_icmp L.Icmp.Slt
-      	  | A.Leq     -> L.build_icmp L.Icmp.Sle
-      	  | A.Greater -> L.build_icmp L.Icmp.Sgt
-      	  | A.Geq     -> L.build_icmp L.Icmp.Sge
-          | A.Mod     -> L.build_srem
-          | _ -> raise (Failure "internal error: operator not allowed")
-      	  ) e1' e2' "tmp" builder
+          let (t, _) = e1
+          and e1' = expr builder e1
+          and e2' = expr builder e2 in
+          (* Binary float operations *)
+          if t = A.Float then (match op with
+        	    A.Add     -> L.build_fadd
+        	  | A.Sub     -> L.build_fsub
+        	  | A.Mult    -> L.build_fmul
+        	  | A.Div     -> L.build_fdiv
+        	  | A.Equal   -> L.build_fcmp L.Fcmp.Oeq
+        	  | A.Neq     -> L.build_fcmp L.Fcmp.One
+        	  | A.Less    -> L.build_fcmp L.Fcmp.Olt
+        	  | A.Leq     -> L.build_fcmp L.Fcmp.Ole
+        	  | A.Greater -> L.build_fcmp L.Fcmp.Ogt
+        	  | A.Geq     -> L.build_fcmp L.Fcmp.Oge
+            | A.Mod     -> L.build_frem
+        	  | A.And | A.Or ->
+        	      raise (Failure "internal error: semant should have rejected and/or on float")
+            | _ -> raise (Failure "internal error: operator not allowed")
+        	  ) e1' e2' "tmp" builder
+        	  else (match op with
+        	  | A.Add     -> L.build_add
+        	  | A.Sub     -> L.build_sub
+        	  | A.Mult    -> L.build_mul
+            | A.Div     -> L.build_sdiv
+        	  | A.And     -> L.build_and
+        	  | A.Or      -> L.build_or
+        	  | A.Equal   -> L.build_icmp L.Icmp.Eq
+        	  | A.Neq     -> L.build_icmp L.Icmp.Ne
+        	  | A.Less    -> L.build_icmp L.Icmp.Slt
+        	  | A.Leq     -> L.build_icmp L.Icmp.Sle
+        	  | A.Greater -> L.build_icmp L.Icmp.Sgt
+        	  | A.Geq     -> L.build_icmp L.Icmp.Sge
+            | A.Mod     -> L.build_srem
+            | _ -> raise (Failure "internal error: operator not allowed")
+        	  ) e1' e2' "tmp" builder
       | SUnop(op, e) ->
-	      let (t, _) = e and e' = expr builder e in
-        (match op with A.Neg when t = A.Float -> L.build_fneg
-	  | A.Neg                  -> L.build_neg
-          | A.Not                  -> L.build_not
-          | _ -> raise (Failure "internal error: operator not allowed")) e' "tmp" builder
+  	      let (t, s) = e and e' = expr builder e in
+          (* Check for Variable identifier *)
+          let is_var v = (match v with
+              SId(_) -> true
+            | _      -> false
+          )
+          in
+          (* Get variable identifier string *)
+          let get_var_str v = (match v with
+              SId(i) -> i
+            | _      -> "whomp"
+          )
+          in
+          let sid = if is_var s then get_var_str s else "whomp" in
+          (match op with
+            A.Neg when t = A.Float -> L.build_fneg e' "tmp" builder
+  	      | A.Neg                  -> L.build_neg e' "tmp" builder
+          | A.Not                  -> L.build_not e' "tmp" builder
+          (* Increment++/Decrement-- only work if operand is a variable identifier *)
+          | A.Inc when t = A.Int && is_var s  -> let new_val = L.build_add e' (L.const_int i32_t 1) "tmp" builder
+                                      in let _ = L.build_store new_val (lookup sid) builder
+                                      in L.build_load (lookup sid) "tmp" builder
+          | A.Dec when t = A.Int && is_var s  -> let new_val = L.build_sub e' (L.const_int i32_t 1) "tmp" builder
+                                      in let _ = L.build_store new_val (lookup sid) builder
+                                      in L.build_load (lookup sid) "tmp" builder
+          | _ -> raise (Failure "internal error: operator not allowed")
+          )
       | SAssign (s, e) -> let e' = expr builder e in
                           let _  = L.build_store e' (lookup s) builder in e'
       | SCall ("print", [e]) ->
-	  L.build_call printf_func [| int_format_str ; (expr builder e) |]
-	    "print" builder
+      	  L.build_call printf_func [| int_format_str ; (expr builder e) |]
+      	    "print" builder
       | SCall ("printstr", [e]) ->
           L.build_call printf_func [| string_format_str ; (expr builder e) |]
             "printstr" builder

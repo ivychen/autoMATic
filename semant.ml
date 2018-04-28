@@ -186,6 +186,7 @@ let check (globals, functions) =
           | Not when t = Bool -> Bool
           (* Increment++/Decrement-- : only work on Int or Int Matrix *)
           | Inc when t = Int -> t
+          | Dec when t = Int -> t
           (* | Inc when t = Int || ((is_mat t) && (mat_typ t) = Int) -> t *)
           (* Tranpose only works on matix *)
           | Trans when (is_mat t) -> t
@@ -200,8 +201,9 @@ let check (globals, functions) =
           let same = t1 = t2 in
           (* Determine expression type based on operator and operand types *)
           let ty = match op with
-            Add | Sub | Mult | Div | Mod when same && t1 = Int   -> Int
-          | Add | Sub | Mult | Div | Mod when same && t1 = Float -> Float
+            Add | Sub | Mult | Div | Mod | Exp when same && t1 = Int   -> Int
+          | Add | Sub | Mult | Div | Mod | Exp when same && t1 = Float -> Float
+          | Exp when (t1 = Int && t2 = Float) || (t1 = Float && t2 = Int) -> Float
           | Equal | Neq                  when same               -> Bool
           | Less | Leq | Greater | Geq
                      when same && (t1 = Int || t1 = Float) -> Bool
