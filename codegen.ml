@@ -212,6 +212,7 @@ let translate (globals, functions) =
           | A.Dec when t = A.Int && is_var s  -> let new_val = L.build_sub e' (L.const_int i32_t 1) "tmp" builder
                                       in let _ = L.build_store new_val (lookup sid) builder
                                       in L.build_load (lookup sid) "tmp" builder
+          (* | A.Trans when t = A.Matrix -> *)
           | _ -> raise (Failure "internal error: operator not allowed")
           )
       | SAssign (s, e) -> let e' = expr builder e in
