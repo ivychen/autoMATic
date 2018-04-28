@@ -1,10 +1,17 @@
-bool doubleTrans(matrix M) {
-	matrix N;
-	N = M'';
+// test matrix transposition
+int main() {
+	int matrix[2][2] N;
+	int matrix[2][2] M;
+
+	N = [[0, 1]; [2, 3]];
+
+	M = N'';
 
 	if (N == M) {
-		return true;
+		printstr("true")
+	} else {
+		printstr("false")
 	}
 
-	return false;
+	return 0;
 }
