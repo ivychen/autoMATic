@@ -184,6 +184,11 @@ let check (globals, functions) =
           let ty = match op with
             Neg when t = Int || t = Float -> t
           | Not when t = Bool -> Bool
+          (* Increment++/Decrement-- : only work on Int or Int Matrix *)
+          | Inc when t = Int -> t
+          (* | Inc when t = Int || ((is_mat t) && (mat_typ t) = Int) -> t *)
+          (* Tranpose only works on matix *)
+          | Trans when (is_mat t) -> t
           | _ -> raise (Failure ("illegal unary operator " ^
                                  string_of_uop op ^ string_of_typ t ^
                                  " in " ^ string_of_expr ex))
@@ -312,7 +317,7 @@ let check (globals, functions) =
             in let _ = if ft = Auto then raise (Failure auto_err)
             in let _ = if ft = Void then raise (Failure void_err)
             in (check_assign ft' et err, e')
-          in 
+          in
           let args' = List.map2 check_call fd.formals args
           in (fd.typ, SCall(fname, args'))
     in

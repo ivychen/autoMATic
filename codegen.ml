@@ -30,7 +30,7 @@ let translate (globals, functions) =
   and float_t    = L.double_type       context
   and void_t     = L.void_type         context in
   let str_t      = L.pointer_type i8_t
-  and array_t    = L.array_type       
+  and array_t    = L.array_type
   (* Create an LLVM module -- this is a "container" into which we'll
      generate actual code *)
   and the_module = L.create_module context "autoMATic" in
@@ -130,67 +130,67 @@ let translate (globals, functions) =
                    with Not_found -> StringMap.find n global_vars
     in
 
-    (* let check_function = 
-        List.fold_left (fun m (t, n) -> StringMap.add n t m) 
+    (* let check_function =
+        List.fold_left (fun m (t, n) -> StringMap.add n t m)
         StringMap.empty (globals @ fdecl.sformals)
     in
-    
+
     let type_of_id s =
-        let symbols = check_function in 
+        let symbols = check_function in
         try StringMap.find s symbols
         with Not_found -> raise (Failure "symbol not found")
     in *)
 
     (* Construct code for an expression; return its value *)
     let rec expr builder (_, e) = match e with
-	SIntLit i -> L.const_int i32_t i
+        SIntLit i -> L.const_int i32_t i
       | SBoolLit b -> L.const_int i1_t (if b then 1 else 0)
       | SFloatLit l -> L.const_float float_t l
       | SStrLit s -> L.build_global_stringptr s "" builder
       | SNoexpr -> L.const_int i32_t 0
       | SId s -> L.build_load (lookup s) s builder
       | SBinop (e1, op, e2) ->
-	  let (t, _) = e1
-	  and e1' = expr builder e1
-	  and e2' = expr builder e2 in
-	  if t = A.Float then (match op with
-	    A.Add     -> L.build_fadd
-	  | A.Sub     -> L.build_fsub
-	  | A.Mult    -> L.build_fmul
-	  | A.Div     -> L.build_fdiv
-	  | A.Equal   -> L.build_fcmp L.Fcmp.Oeq
-	  | A.Neq     -> L.build_fcmp L.Fcmp.One
-	  | A.Less    -> L.build_fcmp L.Fcmp.Olt
-	  | A.Leq     -> L.build_fcmp L.Fcmp.Ole
-	  | A.Greater -> L.build_fcmp L.Fcmp.Ogt
-	  | A.Geq     -> L.build_fcmp L.Fcmp.Oge
+        let (t, _) = e1
+        and e1' = expr builder e1
+        and e2' = expr builder e2 in
+        (* Binary float operations *)
+        if t = A.Float then (match op with
+      	    A.Add     -> L.build_fadd
+      	  | A.Sub     -> L.build_fsub
+      	  | A.Mult    -> L.build_fmul
+      	  | A.Div     -> L.build_fdiv
+      	  | A.Equal   -> L.build_fcmp L.Fcmp.Oeq
+      	  | A.Neq     -> L.build_fcmp L.Fcmp.One
+      	  | A.Less    -> L.build_fcmp L.Fcmp.Olt
+      	  | A.Leq     -> L.build_fcmp L.Fcmp.Ole
+      	  | A.Greater -> L.build_fcmp L.Fcmp.Ogt
+      	  | A.Geq     -> L.build_fcmp L.Fcmp.Oge
           | A.Mod     -> L.build_frem
-	  | A.And | A.Or ->
-	      raise (Failure "internal error: semant should have rejected and/or on float")
+      	  | A.And | A.Or ->
+      	      raise (Failure "internal error: semant should have rejected and/or on float")
           | _ -> raise (Failure "internal error: operator not allowed")
-	  ) e1' e2' "tmp" builder
-	  else (match op with
-	  | A.Add     -> L.build_add
-	  | A.Sub     -> L.build_sub
-	  | A.Mult    -> L.build_mul
+      	  ) e1' e2' "tmp" builder
+      	  else (match op with
+      	  | A.Add     -> L.build_add
+      	  | A.Sub     -> L.build_sub
+      	  | A.Mult    -> L.build_mul
           | A.Div     -> L.build_sdiv
-	  | A.And     -> L.build_and
-	  | A.Or      -> L.build_or
-	  | A.Equal   -> L.build_icmp L.Icmp.Eq
-	  | A.Neq     -> L.build_icmp L.Icmp.Ne
-	  | A.Less    -> L.build_icmp L.Icmp.Slt
-	  | A.Leq     -> L.build_icmp L.Icmp.Sle
-	  | A.Greater -> L.build_icmp L.Icmp.Sgt
-	  | A.Geq     -> L.build_icmp L.Icmp.Sge
-    | A.Mod     -> L.build_srem
-    | _ -> raise (Failure "internal error: operator not allowed")
-	  ) e1' e2' "tmp" builder
+      	  | A.And     -> L.build_and
+      	  | A.Or      -> L.build_or
+      	  | A.Equal   -> L.build_icmp L.Icmp.Eq
+      	  | A.Neq     -> L.build_icmp L.Icmp.Ne
+      	  | A.Less    -> L.build_icmp L.Icmp.Slt
+      	  | A.Leq     -> L.build_icmp L.Icmp.Sle
+      	  | A.Greater -> L.build_icmp L.Icmp.Sgt
+      	  | A.Geq     -> L.build_icmp L.Icmp.Sge
+          | A.Mod     -> L.build_srem
+          | _ -> raise (Failure "internal error: operator not allowed")
+      	  ) e1' e2' "tmp" builder
       | SUnop(op, e) ->
-	  let (t, _) = e and e' = expr builder e in
-	  (match op with
-	    A.Neg when t = A.Float -> L.build_fneg
+	      let (t, _) = e and e' = expr builder e in
+        (match op with A.Neg when t = A.Float -> L.build_fneg
 	  | A.Neg                  -> L.build_neg
-          | A.Not                  -> L.build_not           
+          | A.Not                  -> L.build_not
           | _ -> raise (Failure "internal error: operator not allowed")) e' "tmp" builder
       | SAssign (s, e) -> let e' = expr builder e in
                           let _  = L.build_store e' (lookup s) builder in e'
@@ -232,7 +232,7 @@ let translate (globals, functions) =
           let reg = L.build_gep (lookup id) [| L.const_int i32_t 0; row; col |] id builder in
           L.build_load reg id builder
       | SMatAssign (id, row, col, value) ->
-          let row   = expr builder row in 
+          let row   = expr builder row in
           let col   = expr builder col in
           let reg   = L.build_gep (lookup id) [| L.const_int i32_t 0; row; col |] id builder in
           let value = expr builder value in
@@ -297,7 +297,7 @@ let translate (globals, functions) =
                   then (expr builder (t, SAssign(n, e)))
                   else (expr builder (t, SNoexpr))
           in builder
-      | SExpr e -> let _ = expr builder e in builder 
+      | SExpr e -> let _ = expr builder e in builder
       | SContinue -> let _ = L.build_br (List.hd !continue_stack) builder in builder
       | SBreak n -> let _ = L.build_br (List.nth !break_stack (n - 1)) builder in builder
       | SReturn e -> let _ = match fdecl.styp with
