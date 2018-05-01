@@ -161,7 +161,7 @@ let translate (globals, functions) =
 	  | A.Geq     -> L.build_fcmp L.Fcmp.Oge e1' e2' "tmp" builder
           | A.Mod     -> L.build_frem  e1' e2' "tmp" builder
           | _         -> raise (Failure "internal error: semant should have rejected and/or on float"))
-          else (match op with
+          else if t = A.Int then (match op with
 	    A.Add     -> L.build_fadd e1' e2' "tmp" builder
 	  | A.Sub     -> L.build_fsub e1' e2' "tmp" builder
 	  | A.Mult    -> L.build_fmul e1' e2' "tmp" builder
@@ -180,6 +180,26 @@ let translate (globals, functions) =
 	  | A.Geq     -> L.build_fcmp L.Fcmp.Oge e1' e2' "tmp" builder
           | A.Mod     -> L.build_frem  e1' e2' "tmp" builder
           | _         -> raise (Failure "internal error: semant should have rejected and/or on float"))
+          else let array_of_arrays mat = 
+              let real_order = List.map List.rev mat in
+              let expr_list = List.map (List.map (expr builder)) real_order in 
+              let list_of_arrays = List.map Array.of_list expr_list in
+              Array.of_list list_of_arrays 
+              in (match op with
+          | A.Add     -> let (_, sx1) = e1 and (_, sx2) = e2 in (match (sx1, sx2) with 
+
+          | (SMatLit mat1, SMatLit mat2) -> let arg1 = array_of_arrays mat1 and arg2 = array_of_arrays mat2 in
+
+              let rows = Array.length arg1 in
+              let cols = Array.length arg1.(0) in 
+              let result = Array.make_matrix rows cols (L.const_int i32_t 0) in 
+              for i = 0 to rows - 1 do
+                  for j = 0 to cols - 1 do
+                      result.(i).(j) <- L.build_add arg1.(i).(j) arg2.(i).(j) "tmp" builder
+                  done;
+              done; L.const_array (array_t i32_t cols) (Array.map (L.const_array i32_t) result)
+              | _ -> raise (Failure "internal error"))
+          | _ -> raise (Failure "internal error"))
       | SUnop(op, e) ->
 	  let (t, _) = e and e' = expr builder e in
 	  (match op with
