@@ -130,17 +130,6 @@ let translate (globals, functions) =
                    with Not_found -> StringMap.find n global_vars
     in
 
-    (* let check_function = 
-        List.fold_left (fun m (t, n) -> StringMap.add n t m) 
-        StringMap.empty (globals @ fdecl.sformals)
-    in
-    
-    let type_of_id s =
-        let symbols = check_function in 
-        try StringMap.find s symbols
-        with Not_found -> raise (Failure "symbol not found")
-    in *)
-
     (* Construct code for an expression; return its value *)
     let rec expr builder (_, e) = match e with
 	SIntLit i -> L.const_int i32_t i
@@ -154,37 +143,43 @@ let translate (globals, functions) =
 	  and e1' = expr builder e1
 	  and e2' = expr builder e2 in
 	  if t = A.Float then (match op with
-	    A.Add     -> L.build_fadd
-	  | A.Sub     -> L.build_fsub
-	  | A.Mult    -> L.build_fmul
-	  | A.Div     -> L.build_fdiv
-	  | A.Equal   -> L.build_fcmp L.Fcmp.Oeq
-	  | A.Neq     -> L.build_fcmp L.Fcmp.One
-	  | A.Less    -> L.build_fcmp L.Fcmp.Olt
-	  | A.Leq     -> L.build_fcmp L.Fcmp.Ole
-	  | A.Greater -> L.build_fcmp L.Fcmp.Ogt
-	  | A.Geq     -> L.build_fcmp L.Fcmp.Oge
-          | A.Mod     -> L.build_frem
-	  | A.And | A.Or ->
-	      raise (Failure "internal error: semant should have rejected and/or on float")
-          | _ -> raise (Failure "internal error: operator not allowed")
-	  ) e1' e2' "tmp" builder
-	  else (match op with
-	  | A.Add     -> L.build_add
-	  | A.Sub     -> L.build_sub
-	  | A.Mult    -> L.build_mul
-          | A.Div     -> L.build_sdiv
-	  | A.And     -> L.build_and
-	  | A.Or      -> L.build_or
-	  | A.Equal   -> L.build_icmp L.Icmp.Eq
-	  | A.Neq     -> L.build_icmp L.Icmp.Ne
-	  | A.Less    -> L.build_icmp L.Icmp.Slt
-	  | A.Leq     -> L.build_icmp L.Icmp.Sle
-	  | A.Greater -> L.build_icmp L.Icmp.Sgt
-	  | A.Geq     -> L.build_icmp L.Icmp.Sge
-    | A.Mod     -> L.build_srem
-    | _ -> raise (Failure "internal error: operator not allowed")
-	  ) e1' e2' "tmp" builder
+	    A.Add     -> L.build_fadd e1' e2' "tmp" builder
+	  | A.Sub     -> L.build_fsub e1' e2' "tmp" builder
+	  | A.Mult    -> L.build_fmul e1' e2' "tmp" builder
+          | A.Exp     -> let (_, exp1) = e1 and (_, exp2) = e2 in (match exp1 with
+                | SFloatLit(v1) -> (match exp2 with 
+                        | SIntLit(v2)   -> L.const_float float_t (v1 ** float_of_int v2)
+                        | SFloatLit(v2) -> L.const_float float_t (v1 ** v2) 
+                        | _ -> raise (Failure "internal error"))
+                | _ -> raise (Failure "internal error"))
+	  | A.Div     -> L.build_fdiv e1' e2' "tmp" builder
+	  | A.Equal   -> L.build_fcmp L.Fcmp.Oeq e1' e2' "tmp" builder
+	  | A.Neq     -> L.build_fcmp L.Fcmp.One e1' e2' "tmp" builder
+	  | A.Less    -> L.build_fcmp L.Fcmp.Olt e1' e2' "tmp" builder
+	  | A.Leq     -> L.build_fcmp L.Fcmp.Ole e1' e2' "tmp" builder
+	  | A.Greater -> L.build_fcmp L.Fcmp.Ogt e1' e2' "tmp" builder
+	  | A.Geq     -> L.build_fcmp L.Fcmp.Oge e1' e2' "tmp" builder
+          | A.Mod     -> L.build_frem  e1' e2' "tmp" builder
+          | _         -> raise (Failure "internal error: semant should have rejected and/or on float"))
+          else (match op with
+	    A.Add     -> L.build_fadd e1' e2' "tmp" builder
+	  | A.Sub     -> L.build_fsub e1' e2' "tmp" builder
+	  | A.Mult    -> L.build_fmul e1' e2' "tmp" builder
+          | A.Exp     -> let (_, exp1) = e1 and (_, exp2) = e2 in (match exp1 with
+                | SIntLit(v1) -> (match exp2 with 
+                        | SIntLit(v2)   -> L.const_int i32_t (int_of_float (float_of_int v1 ** float_of_int v2)) 
+                        | SFloatLit(v2) -> L.const_float float_t (float_of_int v1 ** v2) 
+                        | _ -> raise (Failure "internal error"))
+                | _ -> raise (Failure "internal error"))
+	  | A.Div     -> L.build_fdiv e1' e2' "tmp" builder
+	  | A.Equal   -> L.build_fcmp L.Fcmp.Oeq e1' e2' "tmp" builder
+	  | A.Neq     -> L.build_fcmp L.Fcmp.One e1' e2' "tmp" builder
+	  | A.Less    -> L.build_fcmp L.Fcmp.Olt e1' e2' "tmp" builder
+	  | A.Leq     -> L.build_fcmp L.Fcmp.Ole e1' e2' "tmp" builder
+	  | A.Greater -> L.build_fcmp L.Fcmp.Ogt e1' e2' "tmp" builder
+	  | A.Geq     -> L.build_fcmp L.Fcmp.Oge e1' e2' "tmp" builder
+          | A.Mod     -> L.build_frem  e1' e2' "tmp" builder
+          | _         -> raise (Failure "internal error: semant should have rejected and/or on float"))
       | SUnop(op, e) ->
 	  let (t, _) = e and e' = expr builder e in
 	  (match op with
