@@ -60,8 +60,8 @@ let global_vars =
 let printf_t = L.var_arg_function_type i32_t [| L.pointer_type i8_t |] in
 let printf_func = L.declare_function "printf" printf_t the_module in
 
-(* let pow_t = L.function_type float_t [| float_t; float_t |] in
-let pow_func = L.declare_function "pow" pow_t the_module in *)
+let pow_t = L.function_type float_t [| float_t; float_t |] in
+let pow_func = L.declare_function "pow" pow_t the_module in 
 
 (* let size_t = L.function_type (ltype_of_typ A.matrix) [| ltype_of_type A.Matrix |] in
 let size_func = L.declare_function "size" size_t the_module in
@@ -181,12 +181,9 @@ let build_function_body fdecl =
             | A.Add     -> L.build_fadd e1' e2' "tmp" builder
             | A.Sub     -> L.build_fsub e1' e2' "tmp" builder
             | A.Mult    -> L.build_fmul e1' e2' "tmp" builder
-            | A.Exp     -> let (_, exp1) = e1 and (_, exp2) = e2 in (match exp1 with
-                            | SFloatLit(v1) -> (match exp2 with 
-                                    | SIntLit(v2)   -> L.const_float float_t (v1 ** float_of_int v2)
-                                    | SFloatLit(v2) -> L.const_float float_t (v1 ** v2) 
-                                    | _ -> raise (Failure "internal error"))
-                            | _ -> raise (Failure "internal error"))
+            | A.Exp     -> let (ty, _) = e2 in 
+                           let safe_cast = if ty = A.Int then L.const_sitofp e2' float_t else e2' 
+                           in L.build_call pow_func [| e1'; safe_cast |] "exp" builder
             | A.Div     -> L.build_fdiv e1' e2' "tmp" builder
             | A.Equal   -> L.build_fcmp L.Fcmp.Oeq e1' e2' "tmp" builder
             | A.Neq     -> L.build_fcmp L.Fcmp.One e1' e2' "tmp" builder
@@ -201,12 +198,12 @@ let build_function_body fdecl =
             | A.Add     -> L.build_add e1' e2' "tmp" builder
             | A.Sub     -> L.build_sub e1' e2' "tmp" builder
             | A.Mult    -> L.build_mul e1' e2' "tmp" builder
-            | A.Exp     -> let (_, exp1) = e1 and (_, exp2) = e2 in (match exp1 with
-                            | SIntLit(v1) -> (match exp2 with 
-                                    | SIntLit(v2)   -> L.const_int i32_t (int_of_float (float_of_int v1 ** float_of_int v2)) 
-                                    | SFloatLit(v2) -> L.const_float float_t (float_of_int v1 ** v2) 
-                                    | _ -> raise (Failure "internal error"))
-                            | _ -> raise (Failure "internal error"))
+            | A.Exp     -> let (ty, _) = e2 in
+                           let cast = L.const_sitofp e1' float_t 
+                           and safe_cast = if ty = A.Int then L.const_sitofp e2' float_t else e2' in
+                           let result = L.build_call pow_func [| cast; safe_cast |] "exp" builder in
+                           let return = if ty = A.Int then L.const_fptosi result i32_t else result 
+                           in return
             | A.Div     -> L.build_sdiv e1' e2' "tmp" builder
             | A.And     -> L.build_and  e1' e2' "tmp" builder
             | A.Or      -> L.build_or   e1' e2' "tmp" builder
@@ -221,7 +218,7 @@ let build_function_body fdecl =
         
         | A.Matrix(ty, _, _) ->
             let rows = L.array_length (L.type_of e1') 
-            and cols = L.array_length (L.type_of (L.const_gep e2' [| zero; zero |])) in (match ty with
+            and cols = L.array_length (L.type_of (L.build_load (L.const_gep e2' [| zero; zero |]) "tmp" builder)) in (match ty with
                 | A.Int -> let result = Array.make_matrix rows cols zero in (match op with 
                     | A.Add      -> for i = 0 to rows - 1 do
                                         for j = 0 to cols - 1 do
