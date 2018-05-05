@@ -52,6 +52,7 @@ type stmt =
 
 type func_decl = {
     mutable typ : typ;
+    fwasauto: bool;
     fname : string;
     formals : bind list;
     body : stmt list;

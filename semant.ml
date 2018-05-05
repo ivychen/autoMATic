@@ -52,7 +52,7 @@ let check (globals, functions) =
   (* Collect function declarations for built-in functions: no bodies *)
   let built_in_decls =
     let add_bind map (name, argtypes, returntype) = StringMap.add name {
-      typ = returntype; fname = name;
+      typ = returntype; fwasauto = false; fname = name;
       formals = List.mapi (fun idx argtype -> (argtype, "x" ^ string_of_int idx)) argtypes;
       body = [] } map
     in List.fold_left add_bind StringMap.empty [ ("printstr", [String], Void);
@@ -378,7 +378,9 @@ let check (globals, functions) =
         (* If returning matrix, check if type match *)
         if is_mat func.typ && is_mat t && (mat_typ func.typ = mat_typ t) then SReturn(t, e')
         else if t = func.typ then SReturn(func.typ, e')
-        else raise (Failure ("return gives " ^ string_of_typ t ^ " expected " ^ string_of_typ func.typ ^ " in " ^ string_of_expr e))
+        else if func.fwasauto
+             then raise (Failure ("function " ^ func.fname ^ " is declared auto but return type is ambiguous: returns both " ^ string_of_typ t ^ " and " ^ string_of_typ func.typ))
+             else raise (Failure ("return gives " ^ string_of_typ t ^ " expected " ^ string_of_typ func.typ ^ " in " ^ string_of_expr e))
 
 	    (* A block is correct if each statement is correct and nothing
 	       follows any Return statement.  Nested blocks are flattened. *)

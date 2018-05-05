@@ -53,6 +53,7 @@ vdecl:
 fdecl:
    typ ID LPAREN formals_opt RPAREN LBRACE stmt_list RBRACE
      { { typ = $1;
+         fwasauto = ($1 = Auto);
       	 fname = $2;
       	 formals = $4;
       	 body = List.rev $7 } }
