@@ -20,3 +20,4 @@ and directive = parse
   white                     { directive lexbuf }
 | "include"                 { INCLUDE }
 | "define"                  { DEFINE }
+| "undef"                   { UNDEF }

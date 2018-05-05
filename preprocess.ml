@@ -18,6 +18,7 @@ and from_channel ic =
         | DefVar(name1, name2) -> if StringMap.mem name2 table
             then StringMap.add name1 (StringMap.find name2 table) table
             else raise (Failure "undefined variable")
+        | Undef(name) -> StringMap.remove name table
         | Var(name) -> if StringMap.mem name table
             then Buffer.add_string buf (StringMap.find name table)
             else Buffer.add_string buf name; table (* ignore it *)
