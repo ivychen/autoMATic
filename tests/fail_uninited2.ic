@@ -1,0 +1,9 @@
+int main() {
+    float y;
+    helper(y);
+    return 0;
+}
+
+void helper(float x) {
+    printflt(x);
+}
