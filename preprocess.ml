@@ -18,15 +18,13 @@ and from_channel ic =
         | DefVar(name1, name2) -> if StringMap.mem name2 table
             then StringMap.add name1 (StringMap.find name2 table) table
             else raise (Failure "undefined variable")
-        | Var(name) -> if StringMap.mem name table 
+        | Var(name) -> if StringMap.mem name table
             then Buffer.add_string buf (StringMap.find name table)
-            else Buffer.add_string buf name; table
+            else Buffer.add_string buf name; table (* ignore it *)
     in
     let lex_buf = Lexing.from_channel ic in
     let stmts = P_parser.program P_scanner.token lex_buf in
     let _ = List.fold_right eval stmts StringMap.empty in
     Buffer.contents buf
-(*
-let _ =
-    print_endline (from_file Sys.argv.(1))
-*)
+
+(* let _ = print_endline (from_file Sys.argv.(1)) *)

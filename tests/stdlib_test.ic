@@ -1,0 +1,10 @@
+#define NUMBER 100
+
+void test() {
+	printstr("imported test stdlib");
+	return;
+}
+
+int number() {
+	return NUMBER;
+}

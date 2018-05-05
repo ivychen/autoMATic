@@ -1,0 +1,7 @@
+#include "stdlib_test.ic"
+
+int main() {
+	test();
+	print(number());
+	return 0;
+}
