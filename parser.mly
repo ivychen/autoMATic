@@ -52,11 +52,11 @@ vdecl:
 
 fdecl:
    typ ID LPAREN formals_opt RPAREN LBRACE stmt_list RBRACE
-     { { typ = $1;
-         fwasauto = ($1 = Auto);
-      	 fname = $2;
-      	 formals = $4;
-      	 body = List.rev $7 } }
+     { {  typ = $1;
+          fwasauto = ($1 = Auto);
+          fname = $2;
+          formals = $4;
+          body = List.rev $7 } }
 
 formals_opt:
     /* nothing */ { [] }
@@ -125,7 +125,7 @@ expr_opt:
 
 expr:
     LITERAL              { IntLit($1)               }
-  | FLIT	               { FloatLit($1)             }
+  | FLIT                 { FloatLit($1)             }
   | TRUE                 { BoolLit(true)            }
   | FALSE                { BoolLit(false)           }
   | STRLIT               { StrLit($1)               }

@@ -214,7 +214,7 @@ let check (globals, functions) =
                      when same && (t1 = Int || t1 = Float) -> Bool
           | And | Or when same && t1 = Bool -> Bool
           | _ -> raise (
-	      Failure ("illegal binary operator " ^
+        Failure ("illegal binary operator " ^
                        string_of_typ t1 ^ " " ^ string_of_op op ^ " " ^
                        string_of_typ t2 ^ " in " ^ string_of_expr e))
           in (ty, SBinop((t1, e1'), op, (t2, e2')))
@@ -286,6 +286,13 @@ let check (globals, functions) =
           let se2 = expr blk e2 in
           (* Right hand side *)
           let se3 = expr blk e3 in
+          (* Check that access indices are integers *)
+          let _ = (match (fst se1) with
+            Int -> Int
+          | _ -> raise (Failure ("attempting to access with a non-integer type")))
+          and _ = (match (fst se2) with
+            Int -> Int
+          | _ -> raise (Failure ("attempting to access with a non-integer type"))) in
           let extract_ty elem = (match elem with
             Int ->  Int
           | Float -> Float
@@ -370,7 +377,7 @@ let check (globals, functions) =
       | If(p, b1, b2) -> SIf(check_bool_expr blk p, check_stmt blk b1, check_stmt blk b2)
       | For(e1, e2, e3, st) ->
           let _ = loop_depth := !loop_depth + 1 in
-	  SFor(expr blk e1, check_bool_expr blk e2, expr blk e3, check_stmt blk st)
+    SFor(expr blk e1, check_bool_expr blk e2, expr blk e3, check_stmt blk st)
       | While(p, s) ->
           let _ = loop_depth := !loop_depth + 1 in
           SWhile(check_bool_expr blk p, check_stmt blk s)
@@ -394,8 +401,8 @@ let check (globals, functions) =
              then raise (Failure ("function " ^ func.fname ^ " is declared auto but return type is ambiguous: returns both " ^ string_of_typ t ^ " and " ^ string_of_typ func.typ))
              else raise (Failure ("return gives " ^ string_of_typ t ^ " expected " ^ string_of_typ func.typ ^ " in " ^ string_of_expr e))
 
-	    (* A block is correct if each statement is correct and nothing
-	       follows any Return statement.  Nested blocks are flattened. *)
+      (* A block is correct if each statement is correct and nothing
+         follows any Return statement.  Nested blocks are flattened. *)
       | Block sl ->
           let rec check_stmt_list = function
               [Return _ as s] -> [check_stmt blk s]
