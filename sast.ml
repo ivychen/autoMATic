@@ -26,7 +26,10 @@ type symtbl_entry = {
     ty : typ;
     (* ety: element type field for matrices *)
     ety : typ option;
-    (* reserved for qualifiers *)
+    (* qualifier: is this symbol const? *)
+    const: bool;
+    (* is this symbol initialized? *)
+    mutable inited: bool;
   }
 
 type blockent = {
