@@ -417,6 +417,7 @@ and produce control flow, not values *)
                                     else (expr builder (t, SNoexpr))
           in builder
   | SExpr e -> let _ = expr builder e in builder 
+
       | SContinue -> let _ = L.build_br (List.hd !continue_stack) builder in builder
       | SBreak n -> let _ = L.build_br (List.nth !break_stack (n - 1)) builder in builder
       | SReturn e -> let _ = match fdecl.styp with
