@@ -31,6 +31,9 @@ let check (globals, functions) =
                     else let entry = {
                         ty = t;
                         ety = None;
+                        const = false;
+                        inited = (kind = "formal"); (* formals always have a value;
+                                                       globals are uninited by default though *)
                     }
                     in Hashtbl.add tbl n1 entry
     in let _ = List.iter check_it (List.sort compare to_check)
@@ -146,11 +149,48 @@ let check (globals, functions) =
           DataType(primitive)
           MatrixRet(primitive)
     *)
+
+    let entry_of_identifier s tbl =
+      if Hashtbl.mem tbl s
+      then Hashtbl.find tbl s
+      else raise (Failure ("undeclared identifier " ^ s))
+    in
+
     let type_of_identifier s tbl =
-      let entry = (if Hashtbl.mem tbl s
-                   then Hashtbl.find tbl s
-                   else raise (Failure ("undeclared identifier " ^ s)))
+      let entry = entry_of_identifier s tbl
       in entry.ty
+    in
+
+    let check_inited_or_fail e tbl = 
+      let rec expr_inited = function
+          IntLit _ -> true
+        | FloatLit _ -> true
+        | BoolLit _ -> true
+        | StrLit _ -> true
+        | Noexpr -> true (* TODO: is this valid? *)
+        | Id s ->
+            let entry = entry_of_identifier s tbl in
+            if not entry.inited
+            then raise (Failure ("use of definitely uninitialized variable " ^ s ^ " is disallowed in " ^ string_of_expr e))
+            else true
+        | Assign(var, e) ->
+            (* The left-hand side can't be initialized unless the right-hand
+             * side is valid, so check it first *)
+            let res = expr_inited e in
+
+            (* Left-hand side can be initialized now, mark it as such *)
+            let entry = entry_of_identifier var tbl in
+            let _ = entry.inited <- true in res
+        | Unop(_, e) -> expr_inited e
+        | Binop(e1, _, e2) -> expr_inited e1 && expr_inited e2
+        | MatLit(_) -> true
+        | MatAccess(s, e1, e2) ->
+            expr_inited (Id(s)) && expr_inited e1 && expr_inited e2
+        | MatAssign(s, e1, e2, e3) ->
+            expr_inited (Id(s)) && expr_inited e1 && expr_inited e2 && expr_inited e3
+        | Call(_, args) ->
+            List.iter (fun e -> ignore (expr_inited e)) args; true
+        in (expr_inited e)
     in
 
     (* Return a semantically-checked expression, i.e., with a type *)
@@ -163,6 +203,7 @@ let check (globals, functions) =
       | Id s       -> (type_of_identifier s blk.symtbl, SId s)
       | Assign(var, e) as ex ->
           let lt = type_of_identifier var blk.symtbl
+          and _ = check_inited_or_fail ex blk.symtbl
           and (rt, e') = expr blk e in
           (* If assigning matrix literal, update the symbtbl entry for the matrix element type (ety) field *)
           (* if (is_mat lt && is_matt rt) then
@@ -180,6 +221,7 @@ let check (globals, functions) =
             string_of_typ rt ^ " in " ^ string_of_expr ex
           in (check_assign lt rt err, SAssign(var, (rt, e')))
       | Unop(op, e) as ex ->
+          let _ = check_inited_or_fail ex blk.symtbl in
           let (t, e') = expr blk e in
           let ty = match op with
             Neg when t = Int || t = Float -> t
@@ -189,6 +231,7 @@ let check (globals, functions) =
                                  " in " ^ string_of_expr ex))
           in (ty, SUnop(op, (t, e')))
       | Binop(e1, op, e2) as e ->
+          let _ = check_inited_or_fail e blk.symtbl in
           let (t1, e1') = expr blk e1
           and (t2, e2') = expr blk e2 in
           (* All binary operators require operands of the same type *)
@@ -253,6 +296,7 @@ let check (globals, functions) =
             then raise(Failure("Matrix elements must be of type Int, Bool or Float"))
             else (Matrix(mty, num_rows, num_cols), SMatLit(smat)) *)
       | MatAccess(s,e1,e2) as ex ->
+          let _ = check_inited_or_fail ex blk.symtbl in
           let se1 = expr blk e1 in
           let se2 = expr blk e2 in
           let ty = type_of_identifier s blk.symtbl in
@@ -269,6 +313,7 @@ let check (globals, functions) =
             | _       ->  raise(Failure("Cannot access elements of non-matrix type " ^ string_of_typ ty ^ " in " ^ string_of_expr ex)))
 
       | MatAssign(s,e1,e2,e3) as ex ->
+          let _ = check_inited_or_fail ex blk.symtbl in
           (* Left hand side *)
           let se1 = expr blk e1 in
           let se2 = expr blk e2 in
@@ -294,6 +339,7 @@ let check (globals, functions) =
 
       | Call(fname, args) as call ->
           let fd = find_func fname in
+          let _ = check_inited_or_fail call blk.symtbl in
           let _ = (if fd.typ = Auto then (let _ = check_function fd in fd) else fd) in
           let param_length = List.length fd.formals in
           if List.length args != param_length then
@@ -345,6 +391,8 @@ let check (globals, functions) =
           in let entry = {
             ty = t';
             ety = None;
+            const = false;
+            inited = (e' != SNoexpr);
           }
 
           in
@@ -355,12 +403,18 @@ let check (globals, functions) =
           if e' = SNoexpr
           then SVDecl(t', n, (et, e'))
           else SVDecl((check_assign t' et type_err), n, (et, e'))
-      | If(p, b1, b2) -> SIf(check_bool_expr blk p, check_stmt blk b1, check_stmt blk b2)
+      | If(p, b1, b2) ->
+          let _ = check_inited_or_fail p blk.symtbl in
+          SIf(check_bool_expr blk p, check_stmt blk b1, check_stmt blk b2)
       | For(e1, e2, e3, st) ->
-          let _ = loop_depth := !loop_depth + 1 in
+          let _ = loop_depth := !loop_depth + 1
+          and _ = check_inited_or_fail e1 blk.symtbl
+          and _ = check_inited_or_fail e2 blk.symtbl
+          and _ = check_inited_or_fail e3 blk.symtbl in
 	  SFor(expr blk e1, check_bool_expr blk e2, expr blk e3, check_stmt blk st)
       | While(p, s) ->
-          let _ = loop_depth := !loop_depth + 1 in
+          let _ = loop_depth := !loop_depth + 1
+          and _ = check_inited_or_fail p blk.symtbl in
           SWhile(check_bool_expr blk p, check_stmt blk s)
       | Continue ->
         if !loop_depth = 0 then raise (Failure "Attempted to call continue without being in a loop")
@@ -371,6 +425,7 @@ let check (globals, functions) =
         else if n < 1 then raise (Failure "Cannot break out of less than one level of looping")
         else SBreak n
       | Return e -> let (t, e') = expr blk e in
+        let _ = check_inited_or_fail e blk.symtbl in
         (* If function return type is AUto, update return type to binding *)
         if func.typ = Auto then func.typ <- t;
         (* If function return type is a matrix, update return to specific matrix binding *)
