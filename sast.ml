@@ -57,7 +57,8 @@ type sprogram = bind list * sfunc_decl list
 
 (* Pretty-printing functions *)
 let rec string_of_sexpr (t, e) =
-  "(" ^ string_of_typ t ^ " : " ^ (match e with
+  "(" ^ string_of_typ t ^ " : " ^
+  (match e with
     SIntLit(l) -> string_of_int l
   | SFloatLit(l) -> string_of_float l
   | SBoolLit(true) -> "true"
@@ -86,7 +87,7 @@ let rec string_of_sexpr (t, e) =
   | SArrAccess(s, e) ->
       s ^ "[" ^ string_of_sexpr e ^ "]" *)
   | SNoexpr -> ""
-				  ) ^ ")"
+  ) ^ ")"
 
 let rec string_of_sstmt = function
     SBlock(stmts, _) ->
