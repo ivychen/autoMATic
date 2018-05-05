@@ -1,4 +1,4 @@
-{ open Parser }
+{ open P_parser }
 
 let digit = ['0' - '9']
 let digits = digit+

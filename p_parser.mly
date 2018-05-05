@@ -1,4 +1,4 @@
-%{ open Ast %}
+%{ open P_ast %}
 
 %token INCLUDE DEFINE /* IF IFDEF IFNDEF ENDIF */
 %token ENDL
@@ -10,7 +10,7 @@
 %token EOF
 
 %start program
-%type <Ast.program> program
+%type <P_ast.program> program
 
 %left INCLUDE DEFINE
 
