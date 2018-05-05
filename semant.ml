@@ -120,6 +120,7 @@ let check (globals, functions) =
       Matrix(_, r, c) -> (r, c)
     | _ -> (0, 0)
     in
+
     (* let data_typ d = match d with
       t -> t
     | _ -> Void
@@ -201,10 +202,14 @@ let check (globals, functions) =
           let same = t1 = t2 in
           (* Determine expression type based on operator and operand types *)
           let ty = match op with
-            Add | Sub | Mult | Div | Mod | Exp when same && t1 = Int   -> Int
-          | Add | Sub | Mult | Div | Mod | Exp when same && t1 = Float -> Float
+            Add | Sub | Mult | Div | Mod | Exp when same && t1 = Int      -> Int
+          | Add | Sub | Mult | Div | Mod | Exp when same && t1 = Float    -> Float
           | Exp when (t1 = Int && t2 = Float) || (t1 = Float && t2 = Int) -> Float
-          | Equal | Neq                  when same               -> Bool
+          | Equal | Neq                        when same                  -> Bool
+          (* Matrix Addition/Subtraction/ElemDiv/ElemMult require matrices of the same dimensions and type *)
+          | Add | Sub | ElemDiv | ELemMult when (is_mat t1 && is_mat t2 && (mat_dim t1 = mat_dim t2) && (mat_typ t1 = mat_typ t2))  -> t1
+          (* Matrix multiplication requires matrices of the same inner dimensions and type *)
+          | Mult when (is_mat t1 && is_mat t2 && (mat_typ t1 = mat_typ t2) && ((snd mat_dim t1) = (fst mat_dim t2))) -> Matrix(mat_typ t1, fst (mat_dim t1), snd (mat_dim t2))
           | Less | Leq | Greater | Geq
                      when same && (t1 = Int || t1 = Float) -> Bool
           | And | Or when same && t1 = Bool -> Bool
