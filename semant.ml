@@ -207,9 +207,9 @@ let check (globals, functions) =
           | Exp when (t1 = Int && t2 = Float) || (t1 = Float && t2 = Int) -> Float
           | Equal | Neq                        when same                  -> Bool
           (* Matrix Addition/Subtraction/ElemDiv/ElemMult require matrices of the same dimensions and type *)
-          | Add | Sub | ElemDiv | ELemMult when (is_mat t1 && is_mat t2 && (mat_dim t1 = mat_dim t2) && (mat_typ t1 = mat_typ t2))  -> t1
+          | Add | Sub | ElemDiv | ElemMult when (is_mat t1 && is_mat t2 && (mat_dim t1 = mat_dim t2) && (mat_typ t1 = mat_typ t2))  -> t1
           (* Matrix multiplication requires matrices of the same inner dimensions and type *)
-          | Mult when (is_mat t1 && is_mat t2 && (mat_typ t1 = mat_typ t2) && ((snd mat_dim t1) = (fst mat_dim t2))) -> Matrix(mat_typ t1, fst (mat_dim t1), snd (mat_dim t2))
+          | Mult when (is_mat t1 && is_mat t2 && (mat_typ t1 = mat_typ t2) && ((snd (mat_dim t1)) = (fst (mat_dim t2)))) -> Matrix(mat_typ t1, fst (mat_dim t1), snd (mat_dim t2))
           | Less | Leq | Greater | Geq
                      when same && (t1 = Int || t1 = Float) -> Bool
           | And | Or when same && t1 = Bool -> Bool
