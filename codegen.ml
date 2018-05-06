@@ -177,6 +177,14 @@ let build_function_body fdecl =
         let (t, _) = e1
         and e1' = expr builder e1
         and e2' = expr builder e2 in (match t with
+        (* Binary bool operations *)
+        | A.Bool -> (match op with
+            | A.And     -> L.build_and e1' e2' "tmp" builder
+            | A.Or      -> L.build_or e1' e2' "tmp" builder
+            | A.Equal   -> L.build_icmp L.Icmp.Eq e1' e2' "tmp" builder
+            | A.Neq     -> L.build_icmp L.Icmp.Ne e1' e2' "tmp" builder
+          )
+        (* Binary float operations *)
         | A.Float -> (match op with
             | A.Add     -> L.build_fadd e1' e2' "tmp" builder
             | A.Sub     -> L.build_fsub e1' e2' "tmp" builder
@@ -193,7 +201,7 @@ let build_function_body fdecl =
             | A.Geq     -> L.build_fcmp L.Fcmp.Oge e1' e2' "tmp" builder
             | A.Mod     -> L.build_frem  e1' e2' "tmp" builder
             | _         -> raise (Failure "internal error: semant should have rejected and/or on float"))
-
+        (* Binary integer operations *)
         | A.Int -> (match op with
             | A.Add     -> L.build_add e1' e2' "tmp" builder
             | A.Sub     -> L.build_sub e1' e2' "tmp" builder
