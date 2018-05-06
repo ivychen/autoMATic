@@ -41,6 +41,7 @@ type bind = typ * string
 
 type stmt =
     Block of stmt list
+  | VDeclList of typ * (string * expr) list
   | VDecl of typ * string * expr
   | Expr of expr
   | Continue
@@ -147,6 +148,14 @@ let string_of_typ = function
   | Auto -> "auto"
   (* | Array -> "array" *)
 
+let string_of_vdecl_list (n, e) =
+  let suffix ex =
+    if ex = Noexpr then ""
+    else " = " ^ (string_of_expr ex)
+  in n ^ (suffix e)
+
+let string_of_bind (t, n) = string_of_typ t ^ " " ^ n ^ ";\n"
+
 let rec string_of_stmt = function
     Block(stmts) ->
       "{\n" ^ String.concat "" (List.map string_of_stmt stmts) ^ "}\n"
@@ -164,8 +173,8 @@ let rec string_of_stmt = function
   | VDecl(t, n, e) ->
       string_of_typ t ^ " " ^ n ^
       (if e = Noexpr then "" else " = " ^ string_of_expr e) ^ ";\n"
-
-let string_of_vdecl (t, id) = string_of_typ t ^ " " ^ id ^ ";\n"
+  | VDeclList(t, decls) ->
+      string_of_typ t ^ " " ^ String.concat ", " (List.map string_of_vdecl_list decls) ^ ";\n"
 
 let string_of_tuple x = "(" ^ (fst x) ^ " : " ^ string_of_typ (snd x) ^ ")"
 
@@ -182,5 +191,5 @@ let string_of_fdecl fdecl =
   "}\n"
 
 let string_of_program (vars, funcs) =
-  String.concat "" (List.map string_of_vdecl vars) ^ "\n" ^
+  String.concat "" (List.map string_of_bind vars) ^ "\n" ^
   String.concat "\n" (List.map string_of_fdecl funcs)
