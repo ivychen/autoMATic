@@ -3,7 +3,7 @@ int main() {
     int y = 3;
     {
         string z = "hello!";
-        printstr(z);
+        print(z);
         x = 5;
     }
 

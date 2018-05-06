@@ -3,8 +3,8 @@ int main() {
     y := "a string";
 
     print(5);
-    printstr(y);
+    print(y);
 
     y = "another string";
-    printstr(y);
+    print(y);
 }

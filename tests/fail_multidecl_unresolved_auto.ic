@@ -1,6 +1,6 @@
 int main() {
     auto x = 5, y, z = "hello";
     print(x);
-    printstr(z);
+    print(z);
     return 0;
 }

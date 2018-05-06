@@ -1,1 +1,1 @@
-Fatal error: exception Failure("function test is declared auto but return type is ambiguous: returns both float and string")
+Fatal error: exception Failure("function test is declared auto but return type is ambiguous: returns both int and bool")
