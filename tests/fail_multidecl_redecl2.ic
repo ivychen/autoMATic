@@ -1,0 +1,5 @@
+int main() {
+    int x = 4, y = 3, z = 2, x = 1;
+    print(x);
+    return 0;
+}
