@@ -265,7 +265,7 @@ let build_function_body fdecl =
                                     done; L.build_load result "diff" builder
                     | A.Mult     -> for i = 0 to rows - 1 do
                                         for j = 0 to cols - 1 do
-                                            let reg = L.build_gep result [| zero; L.const_int i32_t i; L.const_int i32_t j |] "tmp" builder
+                                            let reg = L.build_gep result [| zero; L.const_int i32_t i; L.const_int i32_t j |] "gep" builder
                                             in ignore (L.build_store zero reg builder)
                                         done;
                                     done;
@@ -346,7 +346,7 @@ let build_function_body fdecl =
                                     done; L.build_load result "diff" builder
                     | A.Mult     -> for i = 0 to rows - 1 do
                                         for j = 0 to cols - 1 do
-                                            let reg = L.build_gep result [| zero; L.const_int i32_t i; L.const_int i32_t j |] "tmp" builder
+                                            let reg = L.build_gep result [| zero; L.const_int i32_t i; L.const_int i32_t j |] "gep" builder
                                             in ignore (L.build_store (L.const_float float_t 0.) reg builder)
                                         done;
                                     done;
@@ -404,7 +404,7 @@ let build_function_body fdecl =
 
                              for i = 0 to rows - 1 do
                                  for j = 0 to rows - 1 do
-                                     let reg = L.build_gep result [| zero; L.const_int i32_t i; L.const_int i32_t j |] "tmp" builder
+                                     let reg = L.build_gep result [| zero; L.const_int i32_t i; L.const_int i32_t j |] "gep" builder
                                      and v = if i = j then one else zero
                                      in ignore (L.build_store v reg builder)
                                  done;
@@ -436,7 +436,7 @@ let build_function_body fdecl =
 
                              for i = 0 to rows - 1 do
                                  for j = 0 to rows - 1 do
-                                     let reg = L.build_gep result [| zero; L.const_int i32_t i; L.const_int i32_t j |] "tmp" builder
+                                     let reg = L.build_gep result [| zero; L.const_int i32_t i; L.const_int i32_t j |] "gep" builder
                                      and v = if i = j then (L.const_float float_t 1.) else (L.const_float float_t 0.)
                                      in ignore (L.build_store v reg builder)
                                  done;
@@ -491,9 +491,50 @@ let build_function_body fdecl =
         | A.Dec when t = A.Int && is_var s  -> let new_val = L.build_sub e' (L.const_int i32_t 1) "tmp" builder
                                     in let _ = L.build_store new_val (lookup sid) builder
                                     in L.build_load (lookup sid) "tmp" builder
-        (* | A.Trans when t = A.Matrix -> *)
-        | _ -> raise (Failure "internal error: operator not allowed")
-        )
+        | A.Trans -> (match t with 
+            | A.Matrix(ty, rows, cols) -> (match ty with 
+                | A.Bool  -> let copy = L.build_alloca (array_t (array_t i1_t cols) rows) "copy" builder in
+                             let _ = L.build_store e' copy builder
+                             and result = L.build_alloca (array_t (array_t i1_t rows) cols) "result" builder in 
+
+                             for i = 0 to rows - 1 do
+                                 let row = L.const_int i32_t i in
+                                 for j = 0 to cols - 1 do
+                                     let col = L.const_int i32_t j in
+                                     let v = L.build_load (L.build_gep copy [| zero; row; col |] "gep" builder) "load" builder 
+                                     and reg = L.build_gep result [| zero; col; row |] "gep" builder in
+                                     ignore (L.build_store v reg builder)
+                                 done;
+                             done; L.build_load result "trans" builder
+                | A.Int   -> let copy = L.build_alloca (array_t (array_t i32_t cols) rows) "copy" builder in
+                             let _ = L.build_store e' copy builder
+                             and result = L.build_alloca (array_t (array_t i32_t rows) cols) "result" builder in 
+
+                             for i = 0 to rows - 1 do
+                                 let row = L.const_int i32_t i in
+                                 for j = 0 to cols - 1 do
+                                     let col = L.const_int i32_t j in
+                                     let v = L.build_load (L.build_gep copy [| zero; row; col |] "gep" builder) "load" builder 
+                                     and reg = L.build_gep result [| zero; col; row |] "gep" builder in
+                                     ignore (L.build_store v reg builder)
+                                 done;
+                             done; L.build_load result "trans" builder
+                | A.Float -> let copy = L.build_alloca (array_t (array_t float_t cols) rows) "copy" builder in
+                             let _ = L.build_store e' copy builder
+                             and result = L.build_alloca (array_t (array_t float_t rows) cols) "result" builder in 
+
+                             for i = 0 to rows - 1 do
+                                 let row = L.const_int i32_t i in
+                                 for j = 0 to cols - 1 do
+                                     let col = L.const_int i32_t j in
+                                     let v = L.build_load (L.build_gep copy [| zero; row; col |] "gep" builder) "load" builder 
+                                     and reg = L.build_gep result [| zero; col; row |] "gep" builder in
+                                     ignore (L.build_store v reg builder)
+                                 done;
+                             done; L.build_load result "trans" builder
+                | _ -> raise (Failure "internal error: operator not allowed"))
+            | _ -> raise (Failure "internal error: operator not allowed"))
+        | _ -> raise (Failure "internal error: operator not allowed"))
     | SAssign (s, e) -> let e' = expr builder e in let _  = L.build_store e' (lookup s) builder in e'
     | SCall ("print", [e]) ->
         let e' = expr builder e in
