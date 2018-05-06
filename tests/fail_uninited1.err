@@ -1,0 +1,1 @@
+Fatal error: exception Failure("use of definitely uninitialized variable x is disallowed in print(x)")
