@@ -348,8 +348,8 @@ let check (globals, functions) =
       | VDecl(t, n, e) as st ->
           let (et, e') = expr blk e in
           let redecl_err = "conflicting variable declaration " ^ n ^ " in function " ^ func.fname
-          and type_err = "illegal variable instantiation " ^ string_of_typ t ^ " = " ^
-            string_of_typ et ^ " in " ^ string_of_stmt st ^ " in function " ^ func.fname
+          and type_err = "illegal variable instantiation " ^ string_of_typ t ^ " " ^ n ^ " = " ^
+            string_of_typ et ^ " in function " ^ func.fname
           and auto_err = "declared auto variable " ^ n ^ " without initializer in function " ^ func.fname
 
           (* Change type to RHS if auto *)

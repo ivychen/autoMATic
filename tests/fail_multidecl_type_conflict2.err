@@ -1,2 +1,1 @@
-Fatal error: exception Failure("illegal variable instantiation int = string in int z = 5;
- in function main")
+Fatal error: exception Failure("illegal variable instantiation int z = string in function main")

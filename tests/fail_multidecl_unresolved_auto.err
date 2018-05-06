@@ -1,2 +1,1 @@
-Fatal error: exception Failure("declared auto variable without initializer in auto y;
- in function main")
+Fatal error: exception Failure("declared auto variable y without initializer in function main")
