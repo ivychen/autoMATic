@@ -9,7 +9,7 @@ int main() {
 // main declarations of "x" and "y" should not conflict
 void test1(int x, string y) {
     print(x);
-    printstr(y);
+    print(y);
     test2(x);
 }
 
