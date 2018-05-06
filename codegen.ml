@@ -321,11 +321,35 @@ let build_function_body fdecl =
                     | _ -> raise (Invalid_argument "invalid matrix binary operator"))
                 | _ -> raise (Failure "unsupported matrix type"))
         | _ -> raise (Invalid_argument "invalid type for binary operator"))
-    | SUnop(op, e) -> let (t, _) = e and e' = expr builder e in (match op with
-        | A.Neg when t = A.Float -> L.build_fneg
-        | A.Neg                  -> L.build_neg
-        | A.Not                  -> L.build_not           
-        | _ -> raise (Failure "internal error: operator not allowed")) e' "tmp" builder
+    | SUnop(op, e) ->
+  	    let (t, s) = e and e' = expr builder e in
+        (* Check for Variable identifier *)
+        let is_var v = (match v with
+            SId(_) -> true
+          | _      -> false
+        )
+        in
+        (* Get variable identifier string *)
+        let get_var_str v = (match v with
+            SId(i) -> i
+          | _      -> "whomp"
+        )
+        in
+        let sid = if is_var s then get_var_str s else "whomp" in
+        (match op with
+          A.Neg when t = A.Float -> L.build_fneg e' "tmp" builder
+  	    | A.Neg                  -> L.build_neg e' "tmp" builder
+        | A.Not                  -> L.build_not e' "tmp" builder
+        (* Increment++/Decrement-- only work if operand is a variable identifier *)
+        | A.Inc when t = A.Int && is_var s  -> let new_val = L.build_add e' (L.const_int i32_t 1) "tmp" builder
+                                    in let _ = L.build_store new_val (lookup sid) builder
+                                    in L.build_load (lookup sid) "tmp" builder
+        | A.Dec when t = A.Int && is_var s  -> let new_val = L.build_sub e' (L.const_int i32_t 1) "tmp" builder
+                                    in let _ = L.build_store new_val (lookup sid) builder
+                                    in L.build_load (lookup sid) "tmp" builder
+        (* | A.Trans when t = A.Matrix -> *)
+        | _ -> raise (Failure "internal error: operator not allowed")
+        )
     | SAssign (s, e) -> let e' = expr builder e in let _  = L.build_store e' (lookup s) builder in e'
     | SCall ("print", [e]) -> L.build_call printf_func [| int_format_str ; (expr builder e) |] "print" builder
     | SCall ("printstr", [e]) -> L.build_call printf_func [| string_format_str ; (expr builder e) |] "printstr" builder

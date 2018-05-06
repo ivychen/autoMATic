@@ -19,7 +19,6 @@ do
     else
         echo "POSITIVE TEST"
         output=$(eval "./automatic.native < ${file} > ${TESTS_DIR}/${filename}.ll")
-        output=$(eval "sed -i '2d' ${TESTS_DIR}/${filename}.ll")
         output=$(eval "lli ${TESTS_DIR}/${filename}.ll > ${TESTS_DIR}/${filename}.out")
     fi
 done
