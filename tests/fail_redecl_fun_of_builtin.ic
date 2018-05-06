@@ -1,5 +1,5 @@
 void print(int x) {
-	printstr("Uh oh!");
+	print("Uh oh!");
 }
 
 int main() {

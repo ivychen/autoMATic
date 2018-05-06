@@ -1,0 +1,6 @@
+int main() {
+    auto x = 5, y, z = "hello";
+    print(x);
+    print(z);
+    return 0;
+}

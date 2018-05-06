@@ -13,20 +13,20 @@ int main() {
 	print((j - 1) * 5); // 45
 
 	j = j - 5; // 5
-	if (i == j) printstr("i == j"); // true
+	if (i == j) print("i == j"); // true
 
 	i = i - 1; // 4
 
-	if (i == j) printstr("i == j"); // false
-	if (i != j) printstr("i != j"); // true
-	if (i < j) printstr("i < j"); // true
-	if (i <= j) printstr("i <= j"); // true
-	if (j <= j) printstr("j <= j"); // true
+	if (i == j) print("i == j"); // false
+	if (i != j) print("i != j"); // true
+	if (i < j) print("i < j"); // true
+	if (i <= j) print("i <= j"); // true
+	if (j <= j) print("j <= j"); // true
 
-	if (j <= i) printstr("j <= i"); // false
-	if (j > i) printstr("j > i"); // true
-	if (j >= i) printstr("j >= i"); // true
-	if (j >= j) printstr("j >= j"); // true
+	if (j <= i) print("j <= i"); // false
+	if (j > i) print("j > i"); // true
+	if (j >= i) print("j >= i"); // true
+	if (j >= j) print("j >= j"); // true
 
 	return 0;
 }

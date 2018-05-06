@@ -1,6 +1,6 @@
 int main() {
 	if(7) {
-		printstr("Hello!");
+		print("Hello!");
 	}
 	return 0;
 }

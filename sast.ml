@@ -14,7 +14,7 @@ and sx =
   | SAssign of string * sexpr
   | SCall of string * sexpr list
   (* Matrix specific *)
-  | SMatLit of sexpr list list
+  | SMatLit of sexpr list list * int * int
   | SMatAccess of string * sexpr * sexpr
   | SMatAssign of string * sexpr * sexpr * sexpr
   (*  | ArrLit of expr list *)
@@ -26,7 +26,10 @@ type symtbl_entry = {
     ty : typ;
     (* ety: element type field for matrices *)
     ety : typ option;
-    (* reserved for qualifiers *)
+    (* qualifier: is this symbol const? *)
+    const: bool;
+    (* is this symbol initialized? *)
+    mutable inited: bool;
   }
 
 type blockent = {
@@ -73,7 +76,7 @@ let rec string_of_sexpr (t, e) =
       f ^ "(" ^ String.concat ", " (List.map string_of_sexpr el) ^ ")"
   (* Matrices: print out the matrix/expression as well as type of element
      formatted like: matrix m .... : ELEMTYPE int*)
-  | SMatLit(ell) ->
+  | SMatLit(ell, _, _) ->
       "[" ^ String.concat ", " (List.map (fun el ->
       "[" ^ String.concat ", " (List.map string_of_sexpr el)) ell) ^ "]"
   | SMatAccess(s, e1, e2) ->
@@ -121,5 +124,5 @@ let string_of_sfdecl fdecl =
   "}\n"
 
 let string_of_sprogram (vars, funcs) =
-  String.concat "" (List.map string_of_vdecl vars) ^ "\n" ^
+  String.concat "" (List.map string_of_bind vars) ^ "\n" ^
   String.concat "\n" (List.map string_of_sfdecl funcs)

@@ -1,7 +1,7 @@
 int main() {
 	int x = 4;
 	else if (x != 0) {
-		printstr("mismatch");
+		print("mismatch");
 	}
 
 	return 0;

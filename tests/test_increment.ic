@@ -12,11 +12,11 @@ int main() {
   j++;
 
   j = j + 1;
-  if (i++ == j) printstr("i++ == j"); // true
+  if (i++ == j) print("i++ == j"); // true
   j = j + 1;
-  if (i++ == j) printstr("i++ == j"); // true
+  if (i++ == j) print("i++ == j"); // true
   j = j + 1;
-  if (i++ == j) printstr("i++ == j"); // true
+  if (i++ == j) print("i++ == j"); // true
 
   print(i); // 4
   print(j); // 4

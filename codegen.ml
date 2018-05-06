@@ -21,6 +21,9 @@ module StringMap = Map.Make(String)
    throws an exception if something is wrong. *)
 let translate (globals, functions) =
     let context = L.global_context () in
+    (* Create an LLVM module -- this is a "container" into which we'll
+       generate actual code *)
+    let the_module = L.create_module context "autoMATic" in
     (* Add types to the context so we can use them in our LLVM code *)
     let i32_t   = L.i32_type          context
     and i8_t    = L.i8_type           context
@@ -28,13 +31,18 @@ let translate (globals, functions) =
     and float_t = L.double_type       context
     and void_t  = L.void_type         context in
     let str_t   = L.pointer_type i8_t
-    and array_t = L.array_type       
+    and array_t = L.array_type
     and zero    = L.const_int i32_t 0
     and one     = L.const_int i32_t 1
-    (* Create an LLVM module -- this is a "container" into which we'll
-       generate actual code *)
-    and the_module = L.create_module context "autoMATic" in
+    and matrix_i   = L.named_struct_type context "matrix_t" in
+                     (* L.struct_set_body matrix_i [|i32_t; i32_t; i32_t; i8_t; L.pointer_type i32_t|] false; *)
+                     L.struct_set_body matrix_i [| i32_t; i32_t; i8_t; L.pointer_type i32_t |] false;
+    let matrix_f   = L.named_struct_type context "matrix_t" in
+                     L.struct_set_body matrix_f [| i32_t; i32_t; i8_t; L.pointer_type float_t|] false;
+    let matrix_b   = L.named_struct_type context "matrix_t" in
+                     L.struct_set_body matrix_b [| i32_t; i32_t; i8_t; L.pointer_type i1_t|] false;
 
+(* === Helpers for autoMATic/LLVM types === *)
 (* Convert autoMATic types to LLVM types *)
 let ltype_of_typ = function
     A.Int    -> i32_t
@@ -50,6 +58,40 @@ let ltype_of_typ = function
     | A.Auto   -> (raise (Failure "internal error: unresolved autodecl"))
     |_ -> raise (Failure "internal error: undefined type") in
 
+(* Based on llvalue type, determine autoMATic type *)
+let type_of_llvalue llval =
+  let lltype_string = L.string_of_lltype llval in
+  (match lltype_string with
+    "void" -> A.Void
+  | "i32"  -> A.Int
+  | "double" -> A.Float
+  | "i1"    -> A.Bool
+  | "i8*"    -> A.String
+  | _       -> raise (Failure "invalid type"))
+in
+
+let type_of_lvalue lv =
+  let lltype = L.type_of lv in
+  type_of_llvalue lltype
+in
+
+(* Initialization helper: function used to initialize global and local variables *)
+let empty_string = L.define_global "__empty_string" (L.const_stringz context "") the_module in
+let init_var typ = (match typ with
+                      A.Int   -> L.const_int i32_t 0
+                    | A.Float -> L.const_float float_t 0.0
+                    | A.Bool -> L.const_int i1_t 0
+                    | A.String -> L.const_bitcast empty_string str_t
+                    | A.Void -> L.const_null void_t
+                    | A.Matrix(ty, _, _) -> (match ty with
+                                              A.Int -> L.const_null matrix_i
+                                            | A.Float -> L.const_null matrix_f
+                                            | A.Bool  -> L.const_null matrix_b
+                                            | _       -> raise (Failure "error: invalid matrix type"))
+                    | _ -> L.const_int i32_t 0
+                    )
+in
+
 (* Declare each global variable; remember its value in a map *)
 let global_vars =
     let global_var m (t, n) =
@@ -61,7 +103,7 @@ let printf_t = L.var_arg_function_type i32_t [| L.pointer_type i8_t |] in
 let printf_func = L.declare_function "printf" printf_t the_module in
 
 let pow_t = L.function_type float_t [| float_t; float_t |] in
-let pow_func = L.declare_function "pow" pow_t the_module in 
+let pow_func = L.declare_function "pow" pow_t the_module in
 
 (* let size_t = L.function_type (ltype_of_typ A.matrix) [| ltype_of_type A.Matrix |] in
 let size_func = L.declare_function "size" size_t the_module in
@@ -102,14 +144,14 @@ let build_function_body fdecl =
 
     (* Keep track of jump locations for breaking out of/continuing loops *)
     let continue_stack = ref []
-    and break_stack = ref [] 
+    and break_stack = ref []
     in
 
     (* Allocate space for any locally declared variables and add the
      * resulting registers to our map *)
     let add_local m (t, n) builder =
-        let local_var = L.build_alloca (ltype_of_typ t) n builder 
-        in Hashtbl.add m n local_var 
+        let local_var = L.build_alloca (ltype_of_typ t) n builder
+        in Hashtbl.add m n local_var
     in
 
     (* Construct the function's "locals": formal arguments and locally
@@ -132,9 +174,9 @@ let build_function_body fdecl =
     with Not_found -> StringMap.find n global_vars
     in
 
-    let build_imul lmat1 lmat2 builder = 
-        let rows = L.array_length (L.type_of lmat1) 
-        and cols = L.array_length (L.type_of (L.build_load (L.const_gep lmat2 [| zero; zero |]) "tmp" builder)) 
+    let build_imul lmat1 lmat2 builder =
+        let rows = L.array_length (L.type_of lmat1)
+        and cols = L.array_length (L.type_of (L.build_load (L.const_gep lmat2 [| zero; zero |]) "tmp" builder))
         and n = L.array_length (L.type_of lmat2) in
         let result = Array.make_matrix rows cols zero in
 
@@ -142,16 +184,16 @@ let build_function_body fdecl =
             for j = 0 to cols - 1 do
                 for k = 0 to n do
                     let v1 = L.build_load (L.const_gep lmat1 [| zero; L.const_int i32_t i; L.const_int i32_t k|]) "tmp" builder
-                    and v2 = L.build_load (L.const_gep lmat2 [| zero; L.const_int i32_t k; L.const_int i32_t j|]) "tmp" builder 
+                    and v2 = L.build_load (L.const_gep lmat2 [| zero; L.const_int i32_t k; L.const_int i32_t j|]) "tmp" builder
                     in result.(i).(j) <- L.const_add result.(i).(j) (L.const_mul v1 v2)
                 done;
             done;
-        done; L.const_array (array_t i32_t cols) (Array.map (L.const_array i32_t) result) 
+        done; L.const_array (array_t i32_t cols) (Array.map (L.const_array i32_t) result)
     in
                                     (* Construct code for an expression; return its value *)
-    let build_fmul lmat1 lmat2 builder = 
-        let rows = L.array_length (L.type_of lmat1) 
-        and cols = L.array_length (L.type_of (L.build_load (L.const_gep lmat2 [| zero; zero |]) "tmp" builder)) 
+    let build_fmul lmat1 lmat2 builder =
+        let rows = L.array_length (L.type_of lmat1)
+        and cols = L.array_length (L.type_of (L.build_load (L.const_gep lmat2 [| zero; zero |]) "tmp" builder))
         and n = L.array_length (L.type_of lmat2) in
         let result = Array.make_matrix rows cols (L.const_float float_t 0.) in
 
@@ -159,11 +201,11 @@ let build_function_body fdecl =
             for j = 0 to cols - 1 do
                 for k = 0 to n do
                     let v1 = L.build_load (L.const_gep lmat1 [| zero; L.const_int i32_t i; L.const_int i32_t k|]) "tmp" builder
-                    and v2 = L.build_load (L.const_gep lmat2 [| zero; L.const_int i32_t k; L.const_int i32_t j|]) "tmp" builder 
+                    and v2 = L.build_load (L.const_gep lmat2 [| zero; L.const_int i32_t k; L.const_int i32_t j|]) "tmp" builder
                     in result.(i).(j) <- L.const_fadd result.(i).(j) (L.const_fmul v1 v2)
                 done;
             done;
-        done; L.const_array (array_t float_t cols) (Array.map (L.const_array float_t) result) 
+        done; L.const_array (array_t float_t cols) (Array.map (L.const_array float_t) result)
     in
 
     let rec expr builder (_, e) = match e with
@@ -173,16 +215,24 @@ let build_function_body fdecl =
     | SStrLit s -> L.build_global_stringptr s "" builder
     | SNoexpr -> L.const_int i32_t 0
     | SId s -> L.build_load (lookup s) s builder
-    | SBinop (e1, op, e2) -> 
+    | SBinop (e1, op, e2) ->
         let (t, _) = e1
         and e1' = expr builder e1
         and e2' = expr builder e2 in (match t with
+        (* Binary bool operations *)
+        | A.Bool -> (match op with
+            | A.And     -> L.build_and e1' e2' "tmp" builder
+            | A.Or      -> L.build_or e1' e2' "tmp" builder
+            | A.Equal   -> L.build_icmp L.Icmp.Eq e1' e2' "tmp" builder
+            | A.Neq     -> L.build_icmp L.Icmp.Ne e1' e2' "tmp" builder
+          )
+        (* Binary float operations *)
         | A.Float -> (match op with
             | A.Add     -> L.build_fadd e1' e2' "tmp" builder
             | A.Sub     -> L.build_fsub e1' e2' "tmp" builder
             | A.Mult    -> L.build_fmul e1' e2' "tmp" builder
-            | A.Exp     -> let (ty, _) = e2 in 
-                           let safe_cast = if ty = A.Int then L.const_sitofp e2' float_t else e2' 
+            | A.Exp     -> let (ty, _) = e2 in
+                           let safe_cast = if ty = A.Int then L.const_sitofp e2' float_t else e2'
                            in L.build_call pow_func [| e1'; safe_cast |] "exp" builder
             | A.Div     -> L.build_fdiv e1' e2' "tmp" builder
             | A.Equal   -> L.build_fcmp L.Fcmp.Oeq e1' e2' "tmp" builder
@@ -193,16 +243,16 @@ let build_function_body fdecl =
             | A.Geq     -> L.build_fcmp L.Fcmp.Oge e1' e2' "tmp" builder
             | A.Mod     -> L.build_frem  e1' e2' "tmp" builder
             | _         -> raise (Failure "internal error: semant should have rejected and/or on float"))
-
+        (* Binary integer operations *)
         | A.Int -> (match op with
             | A.Add     -> L.build_add e1' e2' "tmp" builder
             | A.Sub     -> L.build_sub e1' e2' "tmp" builder
             | A.Mult    -> L.build_mul e1' e2' "tmp" builder
             | A.Exp     -> let (ty, _) = e2 in
-                           let cast = L.const_sitofp e1' float_t 
+                           let cast = L.const_sitofp e1' float_t
                            and safe_cast = if ty = A.Int then L.const_sitofp e2' float_t else e2' in
                            let result = L.build_call pow_func [| cast; safe_cast |] "exp" builder in
-                           let return = if ty = A.Int then L.const_fptosi result i32_t else result 
+                           let return = if ty = A.Int then L.const_fptosi result i32_t else result
                            in return
             | A.Div     -> L.build_sdiv e1' e2' "tmp" builder
             | A.And     -> L.build_and  e1' e2' "tmp" builder
@@ -215,71 +265,71 @@ let build_function_body fdecl =
             | A.Geq     -> L.build_icmp L.Icmp.Sge e1' e2' "tmp" builder
             | A.Mod     -> L.build_srem  e1' e2' "tmp" builder
             | _         -> raise (Failure "internal error: semant should have rejected and/or on int"))
-        
+
         | A.Matrix(ty, _, _) ->
-            let rows = L.array_length (L.type_of e1') 
+            let rows = L.array_length (L.type_of e1')
             and cols = L.array_length (L.type_of (L.build_load (L.const_gep e2' [| zero; zero |]) "tmp" builder)) in (match ty with
-                | A.Int -> let result = Array.make_matrix rows cols zero in (match op with 
+                | A.Int -> let result = Array.make_matrix rows cols zero in (match op with
                     | A.Add      -> for i = 0 to rows - 1 do
                                         for j = 0 to cols - 1 do
-                                            let v1 = L.build_load (L.const_gep e1' 
+                                            let v1 = L.build_load (L.const_gep e1'
                                             [| zero; L.const_int i32_t i; L.const_int i32_t j|]) "tmp" builder
-                                            and v2 = L.build_load (L.const_gep e2' 
+                                            and v2 = L.build_load (L.const_gep e2'
                                             [| zero; L.const_int i32_t i; L.const_int i32_t j|]) "tmp" builder
-                                            in result.(i).(j) <- L.const_add v1 v2 
+                                            in result.(i).(j) <- L.const_add v1 v2
                                         done;
                                     done; L.const_array (array_t i32_t cols) (Array.map (L.const_array i32_t) result)
                     | A.Sub      -> for i = 0 to rows - 1 do
                                        for j = 0 to cols - 1 do
-                                            let v1 = L.build_load (L.const_gep e1' 
+                                            let v1 = L.build_load (L.const_gep e1'
                                             [| zero; L.const_int i32_t i; L.const_int i32_t j|]) "tmp" builder
-                                            and v2 = L.build_load (L.const_gep e2' 
+                                            and v2 = L.build_load (L.const_gep e2'
                                             [| zero; L.const_int i32_t i; L.const_int i32_t j|]) "tmp" builder
                                             in result.(i).(j) <- L.const_sub v1 v2
                                         done;
                                     done; L.const_array (array_t i32_t cols) (Array.map (L.const_array i32_t) result)
                     | A.Mult     -> build_imul e1' e2' builder
                     | A.Exp      -> for i = 0 to rows - 1 do
-                                       result.(i).(i) <- one 
+                                       result.(i).(i) <- one
                                     done;
                                     let id = (L.const_array (array_t i32_t cols) (Array.map (L.const_array i32_t) result)) in
-                                    let rec pow lmat exp = if L.is_null e2' then id 
+                                    let rec pow lmat exp = if L.is_null e2' then id
                                                            else build_imul lmat (pow lmat (L.const_sub exp one)) builder
                                     in pow e1' e2'
                     | A.ElemMult -> for i = 0 to rows - 1 do
                                         for j = 0 to cols - 1 do
-                                            let v1 = L.build_load (L.const_gep e1' 
+                                            let v1 = L.build_load (L.const_gep e1'
                                             [| zero; L.const_int i32_t i; L.const_int i32_t j|]) "tmp" builder
-                                            and v2 = L.build_load (L.const_gep e2' 
+                                            and v2 = L.build_load (L.const_gep e2'
                                             [| zero; L.const_int i32_t i; L.const_int i32_t j|]) "tmp" builder
                                             in result.(i).(j) <- L.const_mul v1 v2
                                         done;
                                     done; L.const_array (array_t i32_t cols) (Array.map (L.const_array i32_t) result)
                     | A.ElemDiv  -> for i = 0 to rows - 1 do
                                         for j = 0 to cols - 1 do
-                                            let v1 = L.build_load (L.const_gep e1' 
+                                            let v1 = L.build_load (L.const_gep e1'
                                             [| zero; L.const_int i32_t i; L.const_int i32_t j|]) "tmp" builder
-                                            and v2 = L.build_load (L.const_gep e2' 
+                                            and v2 = L.build_load (L.const_gep e2'
                                             [| zero; L.const_int i32_t i; L.const_int i32_t j|]) "tmp" builder
                                             in result.(i).(j) <- L.const_sdiv v1 v2
                                         done;
                                     done; L.const_array (array_t i32_t cols) (Array.map (L.const_array i32_t) result)
                     | _ -> raise (Invalid_argument "invalid matrix binary operator"))
-                | A.Float -> let result = Array.make_matrix rows cols (L.const_float float_t 0.) in (match op with 
+                | A.Float -> let result = Array.make_matrix rows cols (L.const_float float_t 0.) in (match op with
                     | A.Add      -> for i = 0 to rows - 1 do
                                         for j = 0 to cols - 1 do
-                                            let v1 = L.build_load (L.const_gep e1' 
+                                            let v1 = L.build_load (L.const_gep e1'
                                             [| zero; L.const_int i32_t i; L.const_int i32_t j|]) "tmp" builder
-                                            and v2 = L.build_load (L.const_gep e2' 
+                                            and v2 = L.build_load (L.const_gep e2'
                                             [| zero; L.const_int i32_t i; L.const_int i32_t j|]) "tmp" builder
-                                            in result.(i).(j) <- L.const_fadd v1 v2 
+                                            in result.(i).(j) <- L.const_fadd v1 v2
                                         done;
                                     done; L.const_array (array_t float_t cols) (Array.map (L.const_array float_t) result)
                     | A.Sub      -> for i = 0 to rows - 1 do
                                         for j = 0 to cols - 1 do
-                                            let v1 = L.build_load (L.const_gep e1' 
+                                            let v1 = L.build_load (L.const_gep e1'
                                             [| zero; L.const_int i32_t i; L.const_int i32_t j|]) "tmp" builder
-                                            and v2 = L.build_load (L.const_gep e2' 
+                                            and v2 = L.build_load (L.const_gep e2'
                                             [| zero; L.const_int i32_t i; L.const_int i32_t j|]) "tmp" builder
                                             in result.(i).(j) <- L.const_fsub v1 v2
                                         done;
@@ -289,23 +339,23 @@ let build_function_body fdecl =
                                        result.(i).(i) <- L.const_float float_t 1.
                                     done;
                                     let id = (L.const_array (array_t float_t cols) (Array.map (L.const_array float_t) result)) in
-                                    let rec pow lmat exp = if L.is_null e2' then id 
+                                    let rec pow lmat exp = if L.is_null e2' then id
                                                            else build_fmul lmat (pow lmat (L.const_sub exp one)) builder
                                     in pow e1' e2'
                     | A.ElemMult -> for i = 0 to rows - 1 do
                                         for j = 0 to cols - 1 do
-                                            let v1 = L.build_load (L.const_gep e1' 
+                                            let v1 = L.build_load (L.const_gep e1'
                                             [| zero; L.const_int i32_t i; L.const_int i32_t j|]) "tmp" builder
-                                            and v2 = L.build_load (L.const_gep e2' 
+                                            and v2 = L.build_load (L.const_gep e2'
                                             [| zero; L.const_int i32_t i; L.const_int i32_t j|]) "tmp" builder
                                             in result.(i).(j) <- L.const_fmul v1 v2
                                         done;
                                     done; L.const_array (array_t float_t cols) (Array.map (L.const_array float_t) result)
                     | A.ElemDiv  -> for i = 0 to rows - 1 do
                                         for j = 0 to cols - 1 do
-                                            let v1 = L.build_load (L.const_gep e1' 
+                                            let v1 = L.build_load (L.const_gep e1'
                                             [| zero; L.const_int i32_t i; L.const_int i32_t j|]) "tmp" builder
-                                            and v2 = L.build_load (L.const_gep e2' 
+                                            and v2 = L.build_load (L.const_gep e2'
                                             [| zero; L.const_int i32_t i; L.const_int i32_t j|]) "tmp" builder
                                             in result.(i).(j) <- L.const_fdiv v1 v2
                                         done;
@@ -313,21 +363,46 @@ let build_function_body fdecl =
                     | _ -> raise (Invalid_argument "invalid matrix binary operator"))
                 | _ -> raise (Failure "unsupported matrix type"))
         | _ -> raise (Invalid_argument "invalid type for binary operator"))
-    | SUnop(op, e) -> let (t, _) = e and e' = expr builder e in (match op with
-        | A.Neg when t = A.Float -> L.build_fneg
-        | A.Neg                  -> L.build_neg
-        | A.Not                  -> L.build_not           
-        | _ -> raise (Failure "internal error: operator not allowed")) e' "tmp" builder
+    | SUnop(op, e) ->
+  	    let (t, s) = e and e' = expr builder e in
+        (* Check for Variable identifier *)
+        let is_var v = (match v with
+            SId(_) -> true
+          | _      -> false
+        )
+        in
+        (* Get variable identifier string *)
+        let get_var_str v = (match v with
+            SId(i) -> i
+          | _      -> "whomp"
+        )
+        in
+        let sid = if is_var s then get_var_str s else "whomp" in
+        (match op with
+          A.Neg when t = A.Float -> L.build_fneg e' "tmp" builder
+  	    | A.Neg                  -> L.build_neg e' "tmp" builder
+        | A.Not                  -> L.build_not e' "tmp" builder
+        (* Increment++/Decrement-- only work if operand is a variable identifier *)
+        | A.Inc when t = A.Int && is_var s  -> let new_val = L.build_add e' (L.const_int i32_t 1) "tmp" builder
+                                    in let _ = L.build_store new_val (lookup sid) builder
+                                    in L.build_load (lookup sid) "tmp" builder
+        | A.Dec when t = A.Int && is_var s  -> let new_val = L.build_sub e' (L.const_int i32_t 1) "tmp" builder
+                                    in let _ = L.build_store new_val (lookup sid) builder
+                                    in L.build_load (lookup sid) "tmp" builder
+        (* | A.Trans when t = A.Matrix -> *)
+        | _ -> raise (Failure "internal error: operator not allowed")
+        )
     | SAssign (s, e) -> let e' = expr builder e in let _  = L.build_store e' (lookup s) builder in e'
-    | SCall ("print", [e]) -> L.build_call printf_func [| int_format_str ; (expr builder e) |] "print" builder
-    | SCall ("printstr", [e]) -> L.build_call printf_func [| string_format_str ; (expr builder e) |] "printstr" builder
-    | SCall ("rows", [e]) -> (match e with
-        | (A.Matrix(_, r, _), _) -> L.const_int i32_t r
-        | _ -> raise (Invalid_argument "invalid argument to rows"))
-    | SCall ("cols", [e]) -> (match e with
-        | (A.Matrix(_, _, c), _) -> L.const_int i32_t c
-        | _ -> raise (Invalid_argument "invalid argument to cols"))
-    | SMatLit mat -> let (_, sx) = List.hd (List.hd mat) in (match sx with
+    | SCall ("print", [e]) ->
+        let e' = expr builder e in
+        (match (type_of_lvalue e') with
+          A.Int    -> L.build_call printf_func [| int_format_str ; (e') |] "print" builder
+        | A.Float  -> L.build_call printf_func [| float_format_str ; (e') |] "printflt" builder
+        | A.String -> L.build_call printf_func [| string_format_str ; (e') |] "printstr" builder
+        | _        -> raise (Failure "invalid print operation")
+        )
+    (* | SCall ("printstr", [e]) -> L.build_call printf_func [| string_format_str ; (expr builder e) |] "printstr" builder *)
+    | SMatLit(mat, rows, cols) -> let (_, sx) = List.hd (List.hd mat) in (match sx with
         | SIntLit _ -> let real_order = List.map List.rev mat in
             let i32_lists = List.map (List.map (expr builder)) real_order in
             let list_of_arrays = List.map Array.of_list i32_lists in
@@ -353,7 +428,7 @@ let build_function_body fdecl =
         let reg = L.build_gep (lookup id) [| zero; row; col |] id builder in
         L.build_load reg id builder
     | SMatAssign (id, row, col, value) ->
-        let row   = expr builder row in 
+        let row   = expr builder row in
         let col   = expr builder col in
         let reg   = L.build_gep (lookup id) [| L.const_int i32_t 0; row; col |] id builder in
         let value = expr builder value in
@@ -373,7 +448,7 @@ let build_function_body fdecl =
   | SCall ("tr", [e]) ->
           L.build_call tr_func [| (expr builder e) |]
         "tr" builder *)
-    | SCall ("printflt", [e]) -> L.build_call printf_func [| float_format_str ; (expr builder e) |] "printflt" builder
+    (* | SCall ("printflt", [e]) -> L.build_call printf_func [| float_format_str ; (expr builder e) |] "printflt" builder *)
     | SCall (f, act) ->
         let (fdef, fdecl) = StringMap.find f function_decls in
         let actuals = List.rev (List.map (expr builder) (List.rev act)) in
@@ -416,7 +491,7 @@ and produce control flow, not values *)
                                     then (expr builder (t, SAssign(n, e)))
                                     else (expr builder (t, SNoexpr))
           in builder
-  | SExpr e -> let _ = expr builder e in builder 
+  | SExpr e -> let _ = expr builder e in builder
 
       | SContinue -> let _ = L.build_br (List.hd !continue_stack) builder in builder
       | SBreak n -> let _ = L.build_br (List.nth !break_stack (n - 1)) builder in builder

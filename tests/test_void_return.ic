@@ -1,5 +1,5 @@
 void printer() {
-	printstr("Hello!");
+	print("Hello!");
 	return;
 }
 
