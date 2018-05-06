@@ -391,13 +391,12 @@ let check (globals, functions) =
     (* Return a semantically-checked statement i.e. containing sexprs *)
     let rec check_stmt (blk : blockent) = function
         Expr e -> SExpr (expr blk e)
-      | VDecl(t, n, e) as st ->
+      | VDecl(t, n, e) ->
           let (et, e') = expr blk e in
           let redecl_err = "conflicting variable declaration " ^ n ^ " in function " ^ func.fname
-          and type_err = "illegal variable instantiation " ^ string_of_typ t ^ " = " ^
-            string_of_typ et ^ " in " ^ string_of_stmt st ^ " in function " ^ func.fname
+          and type_err = "illegal variable instantiation " ^ string_of_typ t ^ " " ^ n ^ " = " ^
+            string_of_typ et ^ " in function " ^ func.fname
           and auto_err = "declared auto variable " ^ n ^ " without initializer in function " ^ func.fname
-
 
           (* Change type to RHS if auto *)
           in let _ = if t = Auto && e = Noexpr
@@ -454,7 +453,7 @@ let check (globals, functions) =
         else if func.fwasauto
              then raise (Failure ("function " ^ func.fname ^ " is declared auto but return type is ambiguous: returns both " ^ string_of_typ t ^ " and " ^ string_of_typ func.typ))
              else raise (Failure ("return gives " ^ string_of_typ t ^ " expected " ^ string_of_typ func.typ ^ " in " ^ string_of_expr e))
-
+      | VDeclList(_, _) -> raise (Failure ("internal error: unresolved VDeclList in semant"))
       (* A block is correct if each statement is correct and nothing
          follows any Return statement.  Nested blocks are flattened. *)
       | Block sl ->
@@ -467,8 +466,18 @@ let check (globals, functions) =
                   symtbl = Hashtbl.copy blk.symtbl;
                 }
                 in check_stmt_list ss @ [check_stmt child_blk (Block sl)]
-            | s :: ss         -> check_stmt_list ss @ [check_stmt blk s]
-            | []              -> []
+            | s :: ss ->
+                let r = match s with
+                  | VDeclList(t, dl) ->
+                      (* Expand a VDeclList into a list of VDecl statements
+                       * that can be checked one-by-one *)
+                      let expand_decls l (n, e) = VDecl(t, n, e) :: l in
+                      let sl = List.fold_left expand_decls [] dl in
+                      let stmts = (List.rev sl) @ ss in
+                      check_stmt_list stmts
+                  | _ -> check_stmt_list ss @ [check_stmt blk s]
+                in r
+            | [] -> []
           in SBlock(List.rev (check_stmt_list sl), blk)
 
     in let blk = check_stmt funblk (Block func.body)

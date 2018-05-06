@@ -1,0 +1,1 @@
+Fatal error: exception Failure("declared auto variable y without initializer in function main")

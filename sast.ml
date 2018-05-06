@@ -124,5 +124,5 @@ let string_of_sfdecl fdecl =
   "}\n"
 
 let string_of_sprogram (vars, funcs) =
-  String.concat "" (List.map string_of_vdecl vars) ^ "\n" ^
+  String.concat "" (List.map string_of_bind vars) ^ "\n" ^
   String.concat "\n" (List.map string_of_sfdecl funcs)

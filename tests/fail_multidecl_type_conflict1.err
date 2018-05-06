@@ -1,0 +1,1 @@
+Fatal error: exception Failure("illegal variable instantiation int y = float in function main")

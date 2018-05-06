@@ -103,10 +103,15 @@ stmt_list:
     /* nothing */  { [] }
   | stmt_list stmt { $2 :: $1 }
 
+vdecl_stmts:
+    ID             { [($1, Noexpr)] }
+  | ID ASSIGN expr { [($1, $3)] }
+  | vdecl_stmts COMMA ID             { ($3, Noexpr) :: $1 }
+  | vdecl_stmts COMMA ID ASSIGN expr { ($3, $5) :: $1 }
+
 stmt:
-    typ ID SEMI                             { VDecl($1, $2, Noexpr) }
-  | typ ID ASSIGN expr SEMI                 { VDecl($1, $2, $4)     }
-  | ID AUTODECL expr SEMI                   { VDecl(Auto, $1, $3)   }
+    typ vdecl_stmts SEMI                    { VDeclList($1, List.rev $2)  }
+  | ID AUTODECL expr SEMI                   { VDeclList(Auto, [($1, $3)]) }
   | expr SEMI                               { Expr $1               }
   | RETURN expr_opt SEMI                    { Return $2             }
   | CONTINUE SEMI                           { Continue              }
