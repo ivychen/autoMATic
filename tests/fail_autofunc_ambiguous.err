@@ -1,1 +1,1 @@
-Fatal error: exception Failure("return gives float expected string in 4.1")
+Fatal error: exception Failure("function test is declared auto but return type is ambiguous: returns both float and string")

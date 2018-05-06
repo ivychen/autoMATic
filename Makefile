@@ -14,13 +14,13 @@ test : automatic.test
 automatic.native :
 	rm -f *.o
 	ocamlbuild -use-ocamlfind -pkgs llvm,llvm.analysis -cflags -g,-w,+a-4 \
-		automatic.native
+        automatic.native
 
 .PHONY : automatic.test
 automatic.test :
 	rm -f *.o
 	ocamlbuild -use-ocamlfind -pkgs llvm,llvm.analysis,bisect_ppx -cflags -g,-w,+a-4 \
-		automatic.native
+        automatic.native
 
 # "make clean" removes all generated files
 
@@ -66,4 +66,3 @@ scanner.cmx : parser.cmx
 semant.cmo : ast.cmo
 semant.cmx : ast.cmx
 parser.cmi : ast.cmo
-

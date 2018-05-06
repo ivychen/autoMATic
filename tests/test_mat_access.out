@@ -1,6 +1,1 @@
-
-void accessMat(M)
-{
-int a;
-a = M[1][1];
-}
+0
