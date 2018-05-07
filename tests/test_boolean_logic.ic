@@ -22,5 +22,7 @@ int main() {
 	if (not pred and not pred2) print("!pred and !pred2 are true"); // false
 	if (not not pred and not not pred2) print("!!pred and !!pred2 are true"); // true
 
+        if (pred != not pred) print("pred != !pred");
+
 	return 0;
 }

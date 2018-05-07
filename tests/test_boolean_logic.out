@@ -5,3 +5,4 @@ pred is false
 pred is true
 pred and pred2 are true
 !!pred and !!pred2 are true
+pred != !pred
