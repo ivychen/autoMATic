@@ -461,7 +461,9 @@ let build_function_body fdecl =
                 | _ -> raise (Failure "unsupported matrix type"))
             | (A.Int, SIntLit n) -> (match ty with
                 | A.Int   -> let copy = L.build_alloca (array_t (array_t i32_t rows) rows) "copy" builder in 
-                             let _ = L.build_store e1' copy builder
+                             let _ = L.build_store e1' copy builder in
+                             let tmp = L.build_alloca (array_t (array_t i32_t rows) rows) "tmp" builder in 
+                             let _ = L.build_store e1' tmp builder
                              and result = L.build_alloca (array_t (array_t i32_t rows) rows) "result" builder in   
 
                              for i = 0 to rows - 1 do
@@ -476,24 +478,26 @@ let build_function_body fdecl =
                                  for i = 0 to rows - 1 do
                                      let row = L.const_int i32_t i in 
                                      for j = 0 to rows - 1 do
-                                         let col = L.const_int i32_t j in
+                                         let col = L.const_int i32_t j and accum = ref zero in
                                          for k = 0 to mid1 - 1 do
                                              let m = L.const_int i32_t k in
-                                             let v1 = L.build_load (L.build_gep result 
+                                             let v1 = L.build_load (L.build_gep tmp 
                                                  [| zero; row; m |] "gep" builder) "load" builder 
                                              and v2 = L.build_load (L.build_gep copy
                                                  [| zero; m; col |] "gep" builder) "load" builder in
                                              let prod = L.build_mul v1 v2 "prod" builder 
-                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder in
-                                             let accum = L.build_load reg "accum" builder in 
-                                             let sum = L.build_add accum prod "sum" builder
-                                             in ignore (L.build_store sum reg builder)
+                                             in accum := L.build_add !accum prod "sum" builder 
                                          done;
+                                         let reg = L.build_gep result [| zero; row; col |] "gep" builder in
+                                         ignore (L.build_store !accum reg builder)
                                      done;
                                  done; 
+                                 ignore (L.build_store (L.build_load result "load" builder) tmp builder)
                              done; L.build_load result "prod" builder
                 | A.Float -> let copy = L.build_alloca (array_t (array_t float_t rows) rows) "copy" builder in 
-                             let _ = L.build_store e1' copy builder
+                             let _ = L.build_store e1' copy builder in
+                             let tmp = L.build_alloca (array_t (array_t float_t rows) rows) "tmp" builder in 
+                             let _ = L.build_store e1' tmp builder
                              and result = L.build_alloca (array_t (array_t float_t rows) rows) "result" builder in 
 
                              for i = 0 to rows - 1 do
@@ -508,21 +512,21 @@ let build_function_body fdecl =
                                  for i = 0 to rows - 1 do
                                      let row = L.const_int i32_t i in 
                                      for j = 0 to rows - 1 do
-                                         let col = L.const_int i32_t j in
+                                         let col = L.const_int i32_t j and accum = ref (L.const_float float_t 0.) in
                                          for k = 0 to mid1 - 1 do
                                              let m = L.const_int i32_t k in
-                                             let v1 = L.build_load (L.build_gep result
+                                             let v1 = L.build_load (L.build_gep tmp 
                                                  [| zero; row; m |] "gep" builder) "load" builder 
                                              and v2 = L.build_load (L.build_gep copy
                                                  [| zero; m; col |] "gep" builder) "load" builder in
                                              let prod = L.build_fmul v1 v2 "prod" builder 
-                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder in
-                                             let accum = L.build_load reg "accum" builder in 
-                                             let sum = L.build_fadd accum prod "sum" builder
-                                             in ignore (L.build_store sum reg builder)
-                                         done ;
+                                             in accum := L.build_fadd !accum prod "sum" builder 
+                                         done;
+                                         let reg = L.build_gep result [| zero; row; col |] "gep" builder in
+                                         ignore (L.build_store !accum reg builder)
                                      done;
                                  done; 
+                                 ignore (L.build_store (L.build_load result "load" builder) tmp builder)
                              done; L.build_load result "prod" builder
                 | _ -> raise (Failure "unsupported matrix type"))
             | _ -> raise (Invalid_argument "invalid arguments to matrix binary operator"))
