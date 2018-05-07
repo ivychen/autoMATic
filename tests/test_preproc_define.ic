@@ -1,0 +1,11 @@
+#include "stdlib_test.ic"
+
+#define AYYLMAO 69
+#define MORE AYYLMAO
+
+int main() {
+	print(number());
+	print(AYYLMAO);
+	print(MORE);
+	return 0;
+}

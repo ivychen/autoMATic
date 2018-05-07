@@ -1,0 +1,29 @@
+#define MY_VAR 777
+#define MY_OTHER_VAR MY_VAR
+
+#ifdef MY_VAR
+void f() {
+	print(MY_VAR);
+}
+#end
+
+#ifdef MY_OTHER_VAR
+#include "stdlib_test.ic"
+#end
+
+#ifdef NUMBER
+void g() {
+	print("hello");
+}
+
+void h(int a) {
+	print(NUMBER + a);
+}
+#end
+
+int main() {
+	f();  // should print 777
+	g();  // should print hello
+	h(5); // should print 105 (100 from stdlib_test.ic)
+	return 0;
+}

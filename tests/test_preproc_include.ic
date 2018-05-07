@@ -1,0 +1,6 @@
+#include "stdlib_test.ic"
+
+int main() {
+	test();
+	return 0;
+}

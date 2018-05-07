@@ -1,0 +1,15 @@
+#include "stdlib_test.ic"
+
+#ifndef NUMBER
+#define NUMBER 42
+#end
+
+#ifndef AYYLMAO
+#define AYYLMAO 69
+#end
+
+int main() {
+	print(AYYLMAO);
+	print(number()); // should print 100, not 42
+	return 0;
+}

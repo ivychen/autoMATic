@@ -1,0 +1,15 @@
+#define NUMBER 100
+
+/*
+Fake stdlib.ic file for testing preprocessor directives.
+Don't change or remove this file without also updating preprocessor tests!
+*/
+
+void test() {
+	print("imported test stdlib");
+	return;
+}
+
+int number() {
+	return NUMBER;
+}

@@ -1,0 +1,8 @@
+#define NUM 4
+#undef NUM
+#define NUM 128
+
+int main() {
+	print(NUM);
+	return 0;
+}
