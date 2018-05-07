@@ -127,10 +127,10 @@ let string_of_typ = function
   | DataType(Void)    -> "void" *)
   | Matrix(t, r, c)   -> (match t with
         Int   -> "int matrix (r:" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
-      | Float -> "float matrix" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
-      | Bool  -> "bool matrix" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
-      | String -> "string matrix" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
-      | Void  -> "void matrix" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
+      | Float -> "float matrix (r:" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
+      | Bool  -> "bool matrix (r:" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
+      | String -> "string matrix (r:" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
+      | Void  -> "void matrix (r:" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
       | Matrix(_,_,_) -> "invalid"
       | Auto -> "invalid"
       | MatrixRet(_) -> "invalid"
