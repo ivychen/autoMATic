@@ -1,0 +1,12 @@
+int main() {
+    int matrix [2][2] x;
+    float matrix [2][2] y;
+
+    x = [ [1,2]; [3,4] ];
+    y = [ [4.1, 4.2]; [4.3, 4.4] ];
+    x = y;
+
+    print(x[0][0]);
+
+    return 0;
+}
