@@ -25,36 +25,46 @@ let translate (globals, functions) =
        generate actual code *)
     let the_module = L.create_module context "autoMATic" in
     (* Add types to the context so we can use them in our LLVM code *)
-    let i32_t   = L.i32_type          context
-    and i8_t    = L.i8_type           context
-    and i1_t    = L.i1_type           context
-    and float_t = L.double_type       context
-    and void_t  = L.void_type         context in
-    let str_t   = L.pointer_type i8_t
-    and array_t = L.array_type
-    and zero    = L.const_int i32_t 0
-    and one     = L.const_int i32_t 1
-    and matrix_i   = L.named_struct_type context "matrix_t" in
+    let i32_t     = L.i32_type          context
+    and i8_t      = L.i8_type           context
+    and i1_t      = L.i1_type           context
+    and float_t   = L.double_type       context
+    and void_t    = L.void_type         context
+    and pointer_t = L.pointer_type      in
+    let str_t     = L.pointer_type i8_t
+    and array_t   = L.array_type
+    and zero      = L.const_int i32_t 0
+    and one       = L.const_int i32_t 1 in
+    (* Create named structs for each of the matrix types, name encodes the type of the matrix
+       Struct only contains a pointer to some value.
+       This needs to be casted to the appropriate matrix [n x [m x ty]] type before performing operations*)
+    let matrix_i   = L.named_struct_type context "matrix_i" in
                      (* L.struct_set_body matrix_i [|i32_t; i32_t; i32_t; i8_t; L.pointer_type i32_t|] false; *)
-                     L.struct_set_body matrix_i [| i32_t; i32_t; i8_t; L.pointer_type i32_t |] false;
-    let matrix_f   = L.named_struct_type context "matrix_t" in
-                     L.struct_set_body matrix_f [| i32_t; i32_t; i8_t; L.pointer_type float_t|] false;
-    let matrix_b   = L.named_struct_type context "matrix_t" in
-                     L.struct_set_body matrix_b [| i32_t; i32_t; i8_t; L.pointer_type i1_t|] false;
+                     L.struct_set_body matrix_i [| L.pointer_type i32_t |] false;
+    let matrix_f   = L.named_struct_type context "matrix_f" in
+                     L.struct_set_body matrix_f [| L.pointer_type float_t |] false;
+    let matrix_b   = L.named_struct_type context "matrix_b" in
+                     L.struct_set_body matrix_b [| L.pointer_type i1_t |] false;
 
 (* === Helpers for autoMATic/LLVM types === *)
 (* Convert autoMATic types to LLVM types *)
 let ltype_of_typ = function
-    A.Int    -> i32_t
+      A.Int    -> i32_t
     | A.Bool   -> i1_t
     | A.Float  -> float_t
     | A.Void   -> void_t
     | A.String -> str_t
-    | A.Matrix(typ, rows, cols) -> (match typ with
+    (* | A.Matrix(typ, rows, cols) -> (match typ with
                                         | A.Int   -> array_t (array_t i32_t cols)   rows
                                         | A.Bool  -> array_t (array_t i1_t cols)    rows
                                         | A.Float -> array_t (array_t float_t cols) rows
-                                        | _       -> raise (Failure "internal error: invalid matrix type"))
+                                        | _       -> raise (Failure "internal error: invalid matrix type")) *)
+    | A.Matrix(typ, rows, cols) -> (match typ with
+                                          A.Int   -> matrix_i
+                                        | A.Float -> matrix_f
+                                        | A.Bool  -> matrix_b
+                                        | _       -> raise(Failure "invalid matrix type")
+                                        )
     | A.Auto   -> (raise (Failure "internal error: unresolved autodecl"))
     |_ -> raise (Failure "internal error: undefined type") in
 
@@ -75,7 +85,16 @@ let type_of_lvalue lv =
   type_of_llvalue lltype
 in
 
-(* Initialization helper: function used to initialize global and local variables
+(* Checks if pointer is to a matrix *)
+let is_matrix ptr =
+  let ltype_string = L.string_of_lltype (L.type_of ptr) in
+  (match ltype_string with
+     "%matrix_i*" | "%matrix_f*" | "%matrix_b*" -> true
+   | _  -> false
+   )
+in
+
+(* Initialization helper: function used to initialize global and local variables *)
 let empty_string = L.define_global "__empty_string" (L.const_stringz context "") the_module in
 let init_var typ = (match typ with
                       A.Int   -> L.const_int i32_t 0
@@ -84,23 +103,23 @@ let init_var typ = (match typ with
                     | A.String -> L.const_bitcast empty_string str_t
                     | A.Void -> L.const_null void_t
                     | A.Matrix(ty, _, _) -> (match ty with
-                                              A.Int -> L.const_null matrix_i
+                                              A.Int   -> L.const_null matrix_i
                                             | A.Float -> L.const_null matrix_f
                                             | A.Bool  -> L.const_null matrix_b
                                             | _       -> raise (Failure "error: invalid matrix type"))
                     | _ -> L.const_int i32_t 0
                     )
-in *)
+in
 
 (* Declare each global variable; remember its value in a map *)
-let global_vars = Hashtbl.create 100 in
-  let global_var m (t, n) =
-    let init = L.const_int (ltype_of_typ t) 0 in
-    Hashtbl.replace m n ((L.define_global n init the_module), t);
+  let global_vars = Hashtbl.create 100 in
+    let global_var m (t, n) =
+      let init = L.const_int (ltype_of_typ t) 0 in
+      Hashtbl.replace m n ((L.define_global n init the_module), t);
+    in
+    let add_to_globals x = global_var global_vars x in
+    let _ = List.iter add_to_globals globals
   in
-  let add_to_globals x = global_var global_vars x in
-  let _ = List.iter add_to_globals globals
-in
 
 let printf_t = L.var_arg_function_type i32_t [| L.pointer_type i8_t |] in
 let printf_func = L.declare_function "printf" printf_t the_module in
@@ -153,28 +172,44 @@ let build_function_body fdecl =
     (* Allocate space for any locally declared variables and add the
      * resulting registers to our map *)
     let add_local m (t, n) builder =
-        let local_var = L.build_alloca (ltype_of_typ t) n builder
-        in Hashtbl.add m n local_var
+      let local_var = L.build_alloca (ltype_of_typ t) n builder in
+      ignore (L.build_store (init_var t) local_var builder);
+      Hashtbl.add m n (local_var, t)
     in
 
     (* Construct the function's "locals": formal arguments and locally
        declared variables.  Allocate each on the stack, initialize their
        value, if appropriate, and remember their values in the "locals" map *)
-    let local_vars = Hashtbl.create 10
-    in let add_formal m (t, n) p =
+    let local_vars = Hashtbl.create 100 in
+      let add_formal m (t, n) p =
         let () = L.set_value_name n p in
         let local = L.build_alloca (ltype_of_typ t) n builder in
-        let _  = L.build_store p local builder in
-        Hashtbl.add m n local
-        in
-    let add_formal_to_locals x y = add_formal local_vars x y
-    in let _ = List.iter2 add_formal_to_locals fdecl.sformals (Array.to_list (L.params the_function))
+        ignore (L.build_store p local builder);
+        Hashtbl.add m n (local, t)
+      in
+
+      let add_formal_to_locals x y = add_formal local_vars x y in
+      let _ = List.iter2 add_formal_to_locals fdecl.sformals (Array.to_list (L.params the_function))
     in
 
     (* Return the value for a variable or formal argument. First check
      * locals, then globals *)
-    let lookup n = try Hashtbl.find local_vars n
-    with Not_found -> StringMap.find n global_vars
+    let lookup n = try fst (Hashtbl.find local_vars n)
+                   with Not_found -> fst (Hashtbl.find global_vars n)
+    in
+
+    let lookup_map n = try (fst (Hashtbl.find local_vars n), local_vars)
+                       with Not_found -> (fst (Hashtbl.find global_vars n), global_vars)
+    in
+
+    let lookup_typ n = try snd (Hashtbl.find local_vars n)
+                       with Not_found -> snd (Hashtbl.find global_vars n)
+    in
+
+    (* Extract typ from a (typ * sexpr) tuple *)
+    let get_styp e = (match e with
+      (typ, _)  -> typ
+    | _             -> raise (Failure "no type from semant tuple"))
     in
 
     let rec expr builder (_, e) = match e with
@@ -604,7 +639,44 @@ let build_function_body fdecl =
                 | _ -> raise (Failure "internal error: operator not allowed"))
             | _ -> raise (Failure "internal error: operator not allowed"))
         | _ -> raise (Failure "internal error: operator not allowed"))
-    | SAssign (s, e) -> let e' = expr builder e in let _  = L.build_store e' (lookup s) builder in e'
+    | SAssign (s, e) ->
+        (* Helper function to reassign matrices *)
+        let reassign_mat old_mat new_mat r c lltype =
+          let old_cast = L.build_bitcast (L.build_struct_gep old_mat 0 "old_mat" builder)  ((pointer_t (array_t (array_t lltype c) r))) "old_mat_cast" builder in
+          let new_cast = L.build_bitcast (L.build_struct_gep new_mat 0 "new_mat" builder)  ((pointer_t (array_t (array_t lltype c) r))) "new_mat_cast" builder in
+          let new_data = L.build_load (new_cast) "new_data" builder in
+          ignore (L.build_store new_data old_cast builder)
+        in
+        let e' = expr builder e in
+        let lh_ty = lookup_typ s in
+        let rh_ty = get_styp e in
+        (* Get llvalue of identifier s *)
+        let (ptr, mp) = lookup_map s in
+        (* Check if both LHS and RHS are matrices *)
+        (match (is_matrix ptr) with
+            true    -> if (L.string_of_lltype (L.type_of e') <> "%matrix_i*" &&
+                           L.string_of_lltype (L.type_of e') <> "%matrix_f*" &&
+                           L.string_of_lltype (L.type_of e') <> "%matrix_b*" )
+                      then raise (Failure "error: matrix must be assigned to a matrix")
+                      else
+                      (* Semantic checker ensures dimensions must be
+                         compatible ie. assignment must be between matrices of same dimensions *)
+                      let (lltype, rows, cols) = (match rh_ty with
+                          A.Matrix(typ, r, c) -> (match typ with
+                                                    A.Int   -> i32_t, r, c
+                                                  | A.Float -> float_t, r, c
+                                                  | A.Bool  -> i1_t, r, c)
+                        | _                   -> raise (Failure "error: invalid assignment"))
+                      in
+                      (* Assign matrix on RHS to LHS and update hashtable *)
+                      Hashtbl.replace mp s (ptr, rh_ty);
+                      reassign_mat ptr e' rows cols lltype; e'
+            (* Assign value normally *)
+          | false   -> let _  = L.build_store e' (lookup s) builder in e'
+             (* let typ1 = L.string_of_lltype (L.type_of (L.build_load ptr "tmp" builder)) in
+             let typ2 = L.string_of_lltype (L.type_of e') in
+             if (typ1 <> typ2) then failwith ("Semantic error : type "^typ1^" is assigned with type " ^typ2); *)
+        )
     | SCall ("print", [e]) ->
         let e' = expr builder e in
         (match (type_of_lvalue e') with
@@ -614,22 +686,40 @@ let build_function_body fdecl =
         | _        -> raise (Failure "invalid print operation")
         )
     (* | SCall ("printstr", [e]) -> L.build_call printf_func [| string_format_str ; (expr builder e) |] "printstr" builder *)
-    | SMatLit(mat, _, _) -> let (_, sx) = List.hd (List.hd mat) in (match sx with
-        | SBoolLit _ -> let i1_lists = List.map (List.map (expr builder)) mat  in
-            let list_of_arrays = List.map Array.of_list i1_lists in
-            let i1_list_of_arrays = List.map (L.const_array i1_t) list_of_arrays in
-            let array_of_arrays = Array.of_list i1_list_of_arrays in
-            L.const_array (array_t i1_t (List.length (List.hd mat))) array_of_arrays
-        | SIntLit _  -> let i32_lists = List.map (List.map (expr builder)) mat in
-            let list_of_arrays = List.map Array.of_list i32_lists in
-            let i32_list_of_arrays = List.map (L.const_array i32_t) list_of_arrays in
-            let array_of_arrays = Array.of_list i32_list_of_arrays in
-            L.const_array (array_t i32_t (List.length (List.hd mat))) array_of_arrays
-        | SFloatLit _ -> let float_lists = List.map (List.map (expr builder)) mat in
-            let list_of_arrays = List.map Array.of_list float_lists in
-            let float_list_of_arrays = List.map (L.const_array float_t) list_of_arrays in
-            let array_of_arrays = Array.of_list float_list_of_arrays in
-            L.const_array (array_t float_t (List.length (List.hd mat))) array_of_arrays
+    | SMatLit(mat, r, c) ->
+      let build_arr_from_list init_mat dt =
+          (match dt with
+             0   ->  let i1_lists = List.map (List.map (expr builder)) init_mat in
+                     let list_of_arrays = List.map Array.of_list i1_lists in
+                     let i1_list_of_arrays = List.map (L.const_array i1_t) list_of_arrays in
+                     let array_of_arrays = Array.of_list i1_list_of_arrays in
+                     L.const_array (array_t i1_t (List.length (List.hd init_mat))) array_of_arrays
+          |  1   ->  let i32_lists = List.map (List.map (expr builder)) init_mat in
+                     let list_of_arrays = List.map Array.of_list i32_lists in
+                     let i32_list_of_arrays = List.map (L.const_array i32_t) list_of_arrays in
+                     let array_of_arrays = Array.of_list i32_list_of_arrays in
+                     L.const_array (array_t i32_t (List.length (List.hd init_mat))) array_of_arrays
+          |  2   ->  let float_lists = List.map (List.map (expr builder)) init_mat in
+                     let list_of_arrays = List.map Array.of_list float_lists in
+                     let float_list_of_arrays = List.map (L.const_array float_t) list_of_arrays in
+                     let array_of_arrays = Array.of_list float_list_of_arrays in
+                     L.const_array (array_t float_t (List.length (List.hd init_mat))) array_of_arrays
+          )
+      in
+      (* Helper functions to build matrix literal inside struct *)
+      let build_mat_lit mat_lit r c mat_type lltype dt =
+        let arr_mat = build_arr_from_list mat_lit dt in
+        (* let ll_mat = L.build_alloca (array_t (array_t lltype c) r) "lit_mat" builder in *)
+        (* let _ = ignore (L.build_store arr_mat ll_mat builder) in *)
+        let m = L.build_alloca mat_type "m" builder in
+        let struct_mat = L.build_struct_gep m 0 "mat_struct" builder in
+        let struct_mat_cast = L.build_bitcast mat_struct_mat ((pointer_t (array_t (array_t lltype c) r))) "m_mat_cast" builder in
+            ignore(L.build_store arr_mat struct_mat_cast builder); m
+      in
+      let (_, sx) = List.hd (List.hd mat) in (match sx with
+        | SBoolLit _  -> build_mat_lit mat r c matrix_b i1_t 0
+        | SIntLit _   -> build_mat_lit mat r c matrix_i i32_t 1
+        | SFloatLit _ -> build_mat_lit mat r c matrix_f float_t 2
         | _ -> raise (Failure "unsupported matrix type"))
     | SMatAccess (id, row, col) ->
         let row = expr builder row in
