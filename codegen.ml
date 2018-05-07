@@ -604,6 +604,7 @@ let build_function_body fdecl =
           A.Int    -> L.build_call printf_func [| int_format_str ; (e') |] "print" builder
         | A.Float  -> L.build_call printf_func [| float_format_str ; (e') |] "printflt" builder
         | A.String -> L.build_call printf_func [| string_format_str ; (e') |] "printstr" builder
+        | A.Bool   -> L.build_call printf_func [| int_format_str ; (e') |] "printb" builder
         | _        -> raise (Failure "invalid print operation")
         )
     (* casting *)

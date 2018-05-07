@@ -1,0 +1,15 @@
+// tests for io.ic
+
+#include "lib/io.ic"
+
+int main() {
+	// printbool
+	printbool(false); 	// false
+	bool b = (1 > 0) or false;
+	printbool(b);		// true
+
+	// printmat
+	// TODO
+
+	return 0;
+}
