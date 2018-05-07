@@ -408,7 +408,7 @@ let check (globals, functions) =
           let e' = expr blk e in
           let se_typ = get_styp e' in
           if is_mat (se_typ) then (match se_typ with
-            Matrix(_, r, _) -> (Int, SIntLit(r))
+            Matrix(_, r, _) -> (Int, SCall("rows", [e']))
           | _               -> raise (Failure "error: invalid use of rows on non-matrix argument"))
           else raise (Failure "error: called rows on non-matrix argument")
       | Call("cols", args) as call->
@@ -418,7 +418,7 @@ let check (globals, functions) =
           let e' = expr blk e in
           let se_typ = get_styp e' in
           if is_mat (se_typ) then (match se_typ with
-            Matrix(_, _, c) -> (Int, SIntLit(c))
+            Matrix(_, _, c) -> (Int, SCall("cols", [e']))
           | _               -> raise (Failure "error: invalid use of cols on non-matrix argument"))
           else raise (Failure "error: called cols on non-matrix argument")
       | Call("print", args) as call ->
@@ -427,12 +427,14 @@ let check (globals, functions) =
           let e = List.hd args in
           let e' = expr blk e in
           let _ = (match e' with
-            (_, SCall(fname, _))    -> let fd = find_func fname in
+          | (_, SCall(fname, _)) when fname = "rows" || fname = "cols" -> ()
+          | (_, SCall(fname, _))    -> let fd = find_func fname in
                                        let _ = (if fd.typ = Auto then (let _ = check_function fd in fd) else fd) in ()
           | _                       -> () )
           in (Void, SCall("print", [e']))
       | Call(fname, args) as call ->
           let fd = find_func fname in
+          let _ = print_string ("\ncalling function..." ^fname ^ "...returns " ^string_of_typ fd.typ) in
           let _ = check_inited_or_fail call blk.symtbl in
           let _ = (if fd.typ = Auto then (let _ = check_function fd in fd) else fd) in
           let param_length = List.length fd.formals in
@@ -448,7 +450,7 @@ let check (globals, functions) =
               " has illegal auto-declared parameter " ^ n
             (* Matrix param check *)
             in let ft' = if is_mat et && is_mat ft && (mat_typ et = mat_typ ft) then et else ft
-            in let _ = print_string ("\n" ^fname ^ " has argument of type " ^ (string_of_typ et))
+            in let _ = print_string ("\n" ^fname ^ " has argument of type " ^ (string_of_typ et) ^ " and return type = " ^ string_of_typ fd.typ)
             in let void_err = "illegal void formal " ^ n
             in let _ = if ft = Auto then raise (Failure auto_err)
             in let _ = if ft = Void then raise (Failure void_err)

@@ -41,11 +41,11 @@ let translate (globals, functions) =
        This needs to be casted to the appropriate matrix [n x [m x ty]] type before performing operations*)
     let matrix_i   = L.named_struct_type context "matrix_i" in
                      (* L.struct_set_body matrix_i [|i32_t; i32_t; i32_t; i8_t; L.pointer_type i32_t|] false; *)
-                     L.struct_set_body matrix_i [| L.pointer_type i32_t |] false;
+                     L.struct_set_body matrix_i [| L.pointer_type i32_t; i32_t; i32_t |] false;
     let matrix_f   = L.named_struct_type context "matrix_f" in
-                     L.struct_set_body matrix_f [| L.pointer_type float_t |] false;
+                     L.struct_set_body matrix_f [| L.pointer_type float_t; i32_t; i32_t |] false;
     let matrix_b   = L.named_struct_type context "matrix_b" in
-                     L.struct_set_body matrix_b [| L.pointer_type i1_t |] false;
+                     L.struct_set_body matrix_b [| L.pointer_type i1_t; i32_t; i32_t |] false;
 
 (* === Helpers for autoMATic/LLVM types === *)
 (* Convert autoMATic types to LLVM types *)
@@ -78,6 +78,9 @@ let type_of_llvalue llval =
   | "double" -> A.Float
   | "i1"    -> A.Bool
   | "i8*"    -> A.String
+  | "%matrix_i*" -> A.Matrix(A.Int, 0,0)
+  | "%matrix_b*" -> A.Matrix(A.Bool, 0,0)
+  | "%matrix_f*" -> A.Matrix(A.Float, 0,0)
   | _       -> raise (Failure "invalid type"))
 in
 
@@ -157,19 +160,30 @@ let printbig_func = L.declare_function "printbig" printbig_t the_module in *)
 
 (* Define each function (arguments and return type) so we can
    define it's body and call it later *)
-let function_decls =
+let function_decls = Hashtbl.create 100 in
     let function_decl m fdecl =
         let name = fdecl.sfname
+        (* and formal_list = (List.map (fun (t, _) -> (ltype_of_typ t)) fdecl.sformals) *)
         and formal_types = Array.of_list (List.map (fun (t,_) -> (ltype_of_typ t)) fdecl.sformals) in
         let ftype = L.function_type ((ltype_of_typ fdecl.styp)) formal_types
         in
         let _ = print_string ("\nfunction type " ^ L.string_of_lltype ftype) in
-        StringMap.add name (L.define_function name ftype the_module, fdecl) m in
-        List.fold_left function_decl StringMap.empty functions in
+        Hashtbl.add m name (L.define_function name ftype the_module, fdecl)
+    in
+    let add_to_function_decls x = function_decl function_decls x in
+    let _ = List.iter add_to_function_decls functions
+    in
+
+        (* StringMap.add name (L.define_function name ftype the_module, fdecl) m in
+        List.fold_left function_decl StringMap.empty functions in *)
+
+let lookup_func f function_decls = try ((Hashtbl.find function_decls f))
+                    with Not_found -> raise (Failure "function not found")
+in
 
 (* Fill in the body of the given function *)
 let build_function_body fdecl =
-    let (the_function, _) = StringMap.find fdecl.sfname function_decls in
+    let (the_function, _) = lookup_func fdecl.sfname function_decls in
     let builder = L.builder_at_end context (L.entry_block the_function) in
 
     let int_format_str = L.build_global_stringptr "%d\n" "fmt" builder
@@ -218,9 +232,6 @@ let build_function_body fdecl =
                        with Not_found -> snd (Hashtbl.find global_vars n)
     in
 
-    let get_mat_ptr m builder = L.build_load m "mat_ptr" builder
-    in
-
     (* === Matrix Builder Helpers === *)
     let build_arr_from_list init_mat lltype expr builder =
       let lltype_lists = List.map (List.map (expr builder)) init_mat in
@@ -236,9 +247,12 @@ let build_function_body fdecl =
       let _ = ignore (L.build_store arr_mat ll_mat builder) in
       let m = L.build_alloca mat_type "m" builder in
       let struct_mat = L.build_struct_gep m 0 "mat_struct" builder in
-      let _ = print_string ("\nmatrix type" ^ L.string_of_lltype (L.type_of m)) in
       let struct_mat_cast = L.build_bitcast struct_mat (pointer_t (pointer_t (array_t (array_t lltype c) r))) "m_mat_cast" builder in
-          ignore(L.build_store ll_mat struct_mat_cast builder); m
+        ignore(L.build_store ll_mat struct_mat_cast builder);
+      let m_r = L.build_struct_gep m 1 "m_r" builder in
+        ignore(L.build_store (L.const_int i32_t r) m_r builder);
+      let m_c = L.build_struct_gep m 2 "m_c" builder in
+        ignore(L.build_store (L.const_int i32_t c) m_c builder); m
     in
 
     let build_mat_init prev_mat r c mat_type lltype expr builder =
@@ -253,7 +267,11 @@ let build_function_body fdecl =
       let m = prev_mat in
       let struct_mat = L.build_struct_gep m 0 "mat_struct" builder in
       let struct_mat_cast = L.build_bitcast struct_mat (pointer_t (pointer_t (array_t (array_t lltype c) r))) "m_mat_cast" builder in
-          ignore(L.build_store ll_mat struct_mat_cast builder); m
+        ignore(L.build_store ll_mat struct_mat_cast builder);
+      let m_r = L.build_struct_gep m 1 "m_r" builder in
+        ignore(L.build_store (L.const_int i32_t r) m_r builder);
+      let m_c = L.build_struct_gep m 2 "m_c" builder in
+        ignore(L.build_store (L.const_int i32_t c) m_c builder); m
     in
 
     (* Helper function to reassign matrices *)
@@ -804,6 +822,14 @@ let build_function_body fdecl =
         | A.String -> L.build_call printf_func [| string_format_str ; (e') |] "printstr" builder
         | _        -> raise (Failure "invalid print operation")
         )
+    | SCall ("rows", [e]) ->
+        let e' = expr builder e in
+        let m_row = L.build_load (L.build_struct_gep e' 1 "m_row" builder) "" builder in
+        m_row
+    | SCall ("cols", [e]) ->
+        let e' = expr builder e in
+        let m_col = L.build_load (L.build_struct_gep e' 2 "m_col" builder) "" builder in
+        m_col
     | SMatLit(mat, r, c) ->
       let (_, sx) = List.hd (List.hd mat) in (match sx with
         | SBoolLit _  -> build_mat_lit mat r c matrix_b i1_t expr builder
@@ -817,7 +843,7 @@ let build_function_body fdecl =
         let ptr = lookup id in
         (match (is_matrix_ptr ptr) with
           true      ->
-                        let (lltype, r, c) = (match typ with
+                        let (_, _, _) = (match typ with
                           A.Matrix(ty, rows, cols) -> (match ty with
                                                   A.Int -> i32_t, rows, cols
                                                 | A.Float -> float_t, rows, cols
@@ -826,9 +852,12 @@ let build_function_body fdecl =
                                                 )
                         | _ -> raise (Failure "invalid identifier type is not matrix"))
                         in
-                        let m_mat = (L.build_struct_gep (lookup id) 0 "m_mat" builder) in
-                        let m_mat_cast = L.build_load (L.build_bitcast m_mat (pointer_t (pointer_t (array_t (array_t lltype c) r))) "m_mat_cast" builder) "m_mat_elem" builder in
-                        let reg = L.build_gep m_mat_cast [| L.const_int i32_t 0; row; col |] id builder in
+                        let m_mat = L.build_load (L.build_struct_gep (lookup id) 0 "m_mat" builder) "" builder in
+                        (* let m_mat_cast = L.build_load (L.build_bitcast m_mat (pointer_t (pointer_t (array_t (array_t lltype c) r))) "m_mat_cast" builder) "m_mat_elem" builder in *)
+                        let m_col = L.build_load (L.build_struct_gep (lookup id) 2 "m_col" builder) "" builder in
+                        let index = L.build_add col (L.build_mul (m_col) row "tmp" builder) "index" builder in
+                        (* let reg = L.build_gep m_mat_cast [| L.const_int i32_t 0; row; col |] id builder in *)
+                        let reg = L.build_gep m_mat [| index |] id builder in
                         L.build_load reg id builder
         | false     -> raise (Failure ("invalid matrix access in type " ^ (L.string_of_lltype (L.type_of ptr))))
         )
@@ -841,7 +870,7 @@ let build_function_body fdecl =
         let ptr = lookup id in
         (match (is_matrix_ptr ptr) with
           true      ->
-                        let (lltype, r, c) = (match typ with
+                        let (_, _, _) = (match typ with
                           A.Matrix(ty, rows, cols) -> (match ty with
                                                   A.Int -> i32_t, rows, cols
                                                 | A.Float -> float_t, rows, cols
@@ -850,9 +879,12 @@ let build_function_body fdecl =
                                                 )
                         | _ -> raise (Failure "invalid identifier type is not matrix"))
                         in
-                        let m_mat = (L.build_struct_gep (lookup id) 0 "m_mat" builder) in
-                        let m_mat_cast = L.build_load (L.build_bitcast m_mat (pointer_t (pointer_t (array_t (array_t lltype c) r))) "m_mat_cast" builder) "m_mat_elem" builder in
-                        let reg = L.build_gep m_mat_cast [| L.const_int i32_t 0; row; col |] id builder in
+                        let m_mat = L.build_load (L.build_struct_gep (lookup id) 0 "m_mat" builder) "" builder in
+                        (* let m_mat_cast = L.build_load (L.build_bitcast m_mat (pointer_t (pointer_t (array_t (array_t lltype c) r))) "m_mat_cast" builder) "m_mat_elem" builder in *)
+                        let m_col = L.build_load (L.build_struct_gep (lookup id) 2 "m_col" builder) "" builder in
+                        let index = L.build_add col (L.build_mul (m_col) row "tmp" builder) "index" builder in
+
+                        let reg = L.build_gep m_mat [| index |] id builder in
                         let value = expr builder value in
                         L.build_store value reg builder
         | false     -> raise (Failure "invalid matrix access")
@@ -874,7 +906,8 @@ let build_function_body fdecl =
         "tr" builder *)
     (* | SCall ("printflt", [e]) -> L.build_call printf_func [| float_format_str ; (expr builder e) |] "printflt" builder *)
     | SCall (f, act) ->
-        let (fdef, fdecl) = StringMap.find f function_decls in
+        let (fdef, fdecl) = lookup_func f function_decls in
+        let _ = print_string ("statements : " ^ (String.concat " " (List.map string_of_sexpr act))) in
         let actuals = List.rev (List.map (expr builder) (List.rev act)) in
         (* Flatten matrix pointers into matrix structs *)
         let flatten_actuals a = (match (is_matrix_ptr a) with
@@ -883,11 +916,11 @@ let build_function_body fdecl =
           )
         in
         (* If matrix is a formal/actual, update the formal definition to the actual *)
-        let update_matrix_actuals a f = (match (get_styp a) with
-          A.Matrix(t, r, c) -> (match (get_styp f) with
-                                  A.Matrix(_, _, _) -> (A.Matrix(t,r,c), (snd f))
-                                | _                    -> raise (Failure "actuals and formals don't map")
-                                )
+        let update_matrix_actuals a f = (match a with
+          (_, SCall(fn, _))   -> let (fndef, fndecl) = lookup_func fn function_decls in (fndecl.styp, (snd f))
+        | (A.Matrix(t, r, c), _) -> (match (get_styp f) with
+                                      A.Matrix(_, _, _) -> (A.Matrix(t,r,c), (snd f))
+                                    | _                    -> raise (Failure "actuals and formals don't map"))
         | _                 -> f
         ) in
         let dynamic_formals = List.map2 (update_matrix_actuals) act fdecl.sformals in
@@ -896,6 +929,7 @@ let build_function_body fdecl =
         let actuals = List.map (flatten_actuals) actuals in
         let _ = print_string ("\nfunction " ^ fdecl.sfname ^ " has actuals " ^ (String.concat "  "(List.map A.string_of_typ (List.map (fun (x,y) -> x) act)))) in
         let _ = print_string ("\nfunction " ^ fdecl.sfname ^ " has AFTER formals " ^ (String.concat "  "(List.map A.string_of_typ (List.map (fun (x,y) -> x) fdecl.sformals)))) in
+        let _ = print_string ("\nfunction " ^ fdecl.sfname ^ " has RETURN " ^ (A.string_of_typ fdecl.styp)) in
 
         let result = (match fdecl.styp with
             | A.Void -> ""
