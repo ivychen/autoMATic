@@ -87,10 +87,19 @@ let type_of_lvalue lv =
 in
 
 (* Checks if pointer is to a matrix *)
-let is_matrix ptr =
+let is_matrix_ptr ptr =
   let ltype_string = L.string_of_lltype (L.type_of ptr) in
   (match ltype_string with
      "%matrix_i*" | "%matrix_f*" | "%matrix_b*" -> true
+   | _  -> false
+   )
+in
+
+(* Checks if lltype is a matrix *)
+let is_matrix ptr =
+  let ltype_string = L.string_of_lltype (L.type_of ptr) in
+  (match ltype_string with
+     "%matrix_i" | "%matrix_f" | "%matrix_b" -> true
    | _  -> false
    )
 in
@@ -151,8 +160,10 @@ let printbig_func = L.declare_function "printbig" printbig_t the_module in *)
 let function_decls =
     let function_decl m fdecl =
         let name = fdecl.sfname
-        and formal_types = Array.of_list (List.map (fun (t,_) -> ltype_of_typ t) fdecl.sformals) in
-        let ftype = L.function_type (ltype_of_typ fdecl.styp) formal_types in
+        and formal_types = Array.of_list (List.map (fun (t,_) -> (ltype_of_typ t)) fdecl.sformals) in
+        let ftype = L.function_type ((ltype_of_typ fdecl.styp)) formal_types
+        in
+        let _ = print_string ("\nfunction type " ^ L.string_of_lltype ftype) in
         StringMap.add name (L.define_function name ftype the_module, fdecl) m in
         List.fold_left function_decl StringMap.empty functions in
 
@@ -207,6 +218,9 @@ let build_function_body fdecl =
                        with Not_found -> snd (Hashtbl.find global_vars n)
     in
 
+    let get_mat_ptr m builder = L.build_load m "mat_ptr" builder
+    in
+
     (* === Matrix Builder Helpers === *)
     let build_arr_from_list init_mat lltype expr builder =
       let lltype_lists = List.map (List.map (expr builder)) init_mat in
@@ -222,6 +236,7 @@ let build_function_body fdecl =
       let _ = ignore (L.build_store arr_mat ll_mat builder) in
       let m = L.build_alloca mat_type "m" builder in
       let struct_mat = L.build_struct_gep m 0 "mat_struct" builder in
+      let _ = print_string ("\nmatrix type" ^ L.string_of_lltype (L.type_of m)) in
       let struct_mat_cast = L.build_bitcast struct_mat (pointer_t (pointer_t (array_t (array_t lltype c) r))) "m_mat_cast" builder in
           ignore(L.build_store ll_mat struct_mat_cast builder); m
     in
@@ -260,7 +275,7 @@ let build_function_body fdecl =
     | SStrLit s -> L.build_global_stringptr s "" builder
     | SNoexpr -> L.const_int i32_t 0
     | SId s -> let ptr = lookup s in
-      (match (is_matrix ptr) with
+      (match (is_matrix_ptr ptr) with
         true  -> ptr
       | false -> L.build_load (lookup s) s builder
       )
@@ -314,14 +329,24 @@ let build_function_body fdecl =
             | A.Geq     -> L.build_icmp L.Icmp.Sge e1' e2' "tmp" builder
             | A.Mod     -> L.build_srem  e1' e2' "tmp" builder
             | _         -> raise (Failure "internal error: semant should have rejected and/or on int"))
-
+        (* Binary matrix operations *)
         | A.Matrix(ty, rows, mid1) -> (match e2 with
             | (A.Matrix(ty, mid2, cols), _) -> (match ty with
+                (* Binary boolean matrix operations *)
                 | A.Bool -> let copy1 = L.build_alloca (array_t (array_t i1_t mid1) rows) "copy" builder in
-                            let _ = L.build_store e1' copy1 builder in
+                            let e_m1 = L.build_bitcast (L.build_struct_gep e1' 0 "copy_cast" builder)  (pointer_t (pointer_t (array_t (array_t i1_t mid1) rows))) "copy_res" builder in
+                            let _ = L.build_store (L.build_load (L.build_load e_m1 "load_ptr" builder) "load_mat" builder) copy1 builder in
+                            (* let _ = L.build_store e1' copy1 builder in *)
                             let copy2 = L.build_alloca (array_t (array_t i1_t cols) mid2) "copy" builder in
-                            let _ = L.build_store e2' copy2 builder
-                            and result = L.build_alloca (array_t (array_t i1_t cols) rows) "result" builder in (match op with
+                            let e_m2 = L.build_bitcast (L.build_struct_gep e2' 0 "copy_cast" builder)  (pointer_t (pointer_t (array_t (array_t i1_t cols) mid2))) "copy_res" builder in
+                            let _ = L.build_store (L.build_load (L.build_load e_m2 "load_ptr" builder) "load_mat" builder) copy2 builder
+
+                            and result = L.build_alloca (array_t (array_t i1_t cols) rows) "result" builder in
+                            let m = (L.build_alloca matrix_b "b_init" builder) in
+                            let result_struct = build_mat_init m rows cols matrix_b i1_t expr builder in
+                            let result_cast = L.build_bitcast (L.build_struct_gep m 0 "b_cast" builder)  (pointer_t (pointer_t (array_t (array_t i1_t cols) rows))) "b_result" builder in
+
+                    (match op with
                     (*| A.Add      -> for i = 0 to rows - 1 do
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
@@ -334,7 +359,9 @@ let build_function_body fdecl =
                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder
                                             in ignore (L.build_store sum reg builder)
                                         done;
-                                    done; L.build_load result "sum" builder
+                                    done;
+                                    L.build_load result "sum" builder
+
                     | A.Sub      -> for i = 0 to rows - 1 do
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
@@ -348,6 +375,7 @@ let build_function_body fdecl =
                                             in ignore (L.build_store diff reg builder)
                                         done;
                                     done; L.build_load result "diff" builder*)
+
                     | A.And      -> for i = 0 to rows - 1 do
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
@@ -360,7 +388,7 @@ let build_function_body fdecl =
                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder
                                             in ignore (L.build_store and_res reg builder)
                                         done;
-                                    done; L.build_load result "and" builder
+                                    done; ignore (L.build_store result result_cast builder); result_struct
                     | A.Or       -> for i = 0 to rows - 1 do
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
@@ -373,13 +401,21 @@ let build_function_body fdecl =
                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder
                                             in ignore (L.build_store or_res reg builder)
                                         done;
-                                    done; L.build_load result "or" builder
+                                    done; ignore (L.build_store result result_cast builder); result_struct
                     | _ -> raise (Invalid_argument "invalid matrix binary operator"))
                 | A.Int -> let copy1 = L.build_alloca (array_t (array_t i32_t mid1) rows) "copy" builder in
-                           let _ = L.build_store e1' copy1 builder in
+                           let e_m1 = L.build_bitcast (L.build_struct_gep e1' 0 "copy_cast" builder)  (pointer_t (pointer_t (array_t (array_t i32_t mid1) rows))) "copy_res" builder in
+                           let _ = L.build_store (L.build_load (L.build_load e_m1 "load_ptr" builder) "load_mat" builder) copy1 builder in
                            let copy2 = L.build_alloca (array_t (array_t i32_t cols) mid2) "copy" builder in
-                           let _ = L.build_store e2' copy2 builder
-                           and result = L.build_alloca (array_t (array_t i32_t cols) rows) "result" builder in (match op with
+                           let e_m2 = L.build_bitcast (L.build_struct_gep e2' 0 "copy_cast" builder)  (pointer_t (pointer_t (array_t (array_t i32_t cols) mid2))) "copy_res" builder in
+                           let _ = L.build_store (L.build_load (L.build_load e_m2 "load_ptr" builder) "load_mat" builder) copy2 builder
+
+                           and result = L.build_alloca (array_t (array_t i32_t cols) rows) "result" builder in
+                           let m = L.build_alloca matrix_i "i_init" builder in
+                           let result_struct = build_mat_init m rows cols matrix_i i32_t expr builder in
+                           let result_cast = L.build_bitcast (L.build_struct_gep m 0 "i_cast" builder)  (pointer_t (pointer_t (array_t (array_t i32_t cols) rows))) "i_result" builder in
+
+                    (match op with
                     | A.Add      -> for i = 0 to rows - 1 do
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
@@ -392,7 +428,7 @@ let build_function_body fdecl =
                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder
                                             in ignore (L.build_store sum reg builder)
                                         done;
-                                    done; L.build_load result "sum" builder
+                                    done; ignore (L.build_store result result_cast builder); result_struct
                     | A.Sub      -> for i = 0 to rows - 1 do
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
@@ -405,7 +441,7 @@ let build_function_body fdecl =
                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder
                                             in ignore (L.build_store diff reg builder)
                                         done;
-                                    done; L.build_load result "diff" builder
+                                    done; ignore (L.build_store result result_cast builder); result_struct
                     | A.Mult     -> for i = 0 to rows - 1 do
                                         for j = 0 to cols - 1 do
                                             let reg = L.build_gep result [| zero; L.const_int i32_t i; L.const_int i32_t j |] "gep" builder
@@ -430,7 +466,7 @@ let build_function_body fdecl =
                                                 in ignore (L.build_store sum reg builder)
                                             done;
                                         done;
-                                    done; L.build_load result "prod" builder
+                                    done; ignore (L.build_store result result_cast builder); result_struct
                     | A.ElemMult -> for i = 0 to rows - 1 do
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
@@ -443,7 +479,7 @@ let build_function_body fdecl =
                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder
                                             in ignore (L.build_store prod reg builder)
                                         done;
-                                    done; L.build_load result "elemult" builder
+                                    done; ignore (L.build_store result result_cast builder); result_struct
                     | A.ElemDiv  -> for i = 0 to rows - 1 do
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
@@ -456,13 +492,21 @@ let build_function_body fdecl =
                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder
                                             in ignore (L.build_store quot reg builder)
                                         done;
-                                    done; L.build_load result "elemdiv" builder
+                                    done; ignore (L.build_store result result_cast builder); result_struct
                     | _ -> raise (Invalid_argument "invalid matrix binary operator"))
                 | A.Float -> let copy1 = L.build_alloca (array_t (array_t float_t mid1) rows) "copy" builder in
-                             let _ = L.build_store e1' copy1 builder in
+                             let e_m1 = L.build_bitcast (L.build_struct_gep e1' 0 "copy_cast" builder)  (pointer_t (pointer_t (array_t (array_t float_t mid1) rows))) "copy_res" builder in
+                             let _ = L.build_store (L.build_load (L.build_load e_m1 "load_ptr" builder) "load_mat" builder) copy1 builder in
                              let copy2 = L.build_alloca (array_t (array_t float_t cols) mid2) "copy" builder in
-                             let _ = L.build_store e2' copy2 builder
-                             and result = L.build_alloca (array_t (array_t float_t cols) rows) "result" builder in (match op with
+                             let e_m2 = L.build_bitcast (L.build_struct_gep e2' 0 "copy_cast" builder)  (pointer_t (pointer_t (array_t (array_t float_t cols) mid2))) "copy_res" builder in
+                             let _ = L.build_store (L.build_load (L.build_load e_m2 "load_ptr" builder) "load_mat" builder) copy2 builder
+
+                             and result = L.build_alloca (array_t (array_t float_t cols) rows) "result" builder in
+                             let m = L.build_alloca matrix_f "f_init" builder in
+                             let result_struct = build_mat_init m rows cols matrix_f float_t expr builder in
+                             let result_cast = L.build_bitcast (L.build_struct_gep m 0 "f_cast" builder)  (pointer_t (pointer_t (array_t (array_t float_t cols) rows))) "f_result" builder in
+
+                    (match op with
                     | A.Add      -> for i = 0 to rows - 1 do
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
@@ -475,7 +519,7 @@ let build_function_body fdecl =
                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder
                                             in ignore (L.build_store sum reg builder)
                                         done;
-                                    done; L.build_load result "sum" builder
+                                    done; ignore (L.build_store result result_cast builder); result_struct
                     | A.Sub      -> for i = 0 to rows - 1 do
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
@@ -488,7 +532,7 @@ let build_function_body fdecl =
                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder
                                             in ignore (L.build_store diff reg builder)
                                         done;
-                                    done; L.build_load result "diff" builder
+                                    done; ignore (L.build_store result result_cast builder); result_struct
                     | A.Mult     -> for i = 0 to rows - 1 do
                                         for j = 0 to cols - 1 do
                                             let reg = L.build_gep result [| zero; L.const_int i32_t i; L.const_int i32_t j |] "gep" builder
@@ -513,7 +557,7 @@ let build_function_body fdecl =
                                                 in ignore (L.build_store sum reg builder)
                                             done;
                                         done;
-                                    done; L.build_load result "prod" builder
+                                    done; ignore (L.build_store result result_cast builder); result_struct
                     | A.ElemMult -> for i = 0 to rows - 1 do
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
@@ -526,7 +570,7 @@ let build_function_body fdecl =
                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder
                                             in ignore (L.build_store prod reg builder)
                                         done;
-                                    done; L.build_load result "elemult" builder
+                                    done; ignore (L.build_store result result_cast builder); result_struct
                     | A.ElemDiv  -> for i = 0 to rows - 1 do
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
@@ -539,15 +583,22 @@ let build_function_body fdecl =
                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder
                                             in ignore (L.build_store quot reg builder)
                                         done;
-                                    done; L.build_load result "elemdiv" builder
+                                    done; ignore (L.build_store result result_cast builder); result_struct
                     | _ -> raise (Invalid_argument "invalid matrix binary operator"))
                 | _ -> raise (Failure "unsupported matrix type"))
             | (A.Int, SIntLit n) -> (match ty with
                 | A.Int   -> let copy = L.build_alloca (array_t (array_t i32_t rows) rows) "copy" builder in
-                             let _ = L.build_store e1' copy builder in
+                             let e_m = L.build_bitcast (L.build_struct_gep e1' 0 "copy_cast" builder)  (pointer_t (pointer_t (array_t (array_t i32_t rows) rows))) "copy_res" builder in
+                             let _ = L.build_store (L.build_load (L.build_load e_m "load_ptr" builder) "load_mat" builder) copy builder in
+
                              let tmp = L.build_alloca (array_t (array_t i32_t rows) rows) "tmp" builder in
-                             let _ = L.build_store e1' tmp builder
+                             let e_tmp = L.build_bitcast (L.build_struct_gep e1' 0 "copy_cast" builder)  (pointer_t (pointer_t (array_t (array_t i32_t rows) rows))) "copy_res" builder in
+                             let _ = L.build_store (L.build_load (L.build_load e_tmp "load_ptr" builder) "load_mat" builder) tmp builder
+
                              and result = L.build_alloca (array_t (array_t i32_t rows) rows) "result" builder in
+                             let m = L.build_alloca matrix_i "i_init" builder in
+                             let result_struct = build_mat_init m rows rows matrix_i i32_t expr builder in
+                             let result_cast = L.build_bitcast (L.build_struct_gep m 0 "i_cast" builder)  (pointer_t (pointer_t (array_t (array_t i32_t rows) rows))) "i_result" builder in
 
                              for i = 0 to rows - 1 do
                                  for j = 0 to rows - 1 do
@@ -576,12 +627,18 @@ let build_function_body fdecl =
                                      done;
                                  done;
                                  ignore (L.build_store (L.build_load result "load" builder) tmp builder)
-                             done; L.build_load result "prod" builder
+                             done; ignore (L.build_store result result_cast builder); result_struct
                 | A.Float -> let copy = L.build_alloca (array_t (array_t float_t rows) rows) "copy" builder in
-                             let _ = L.build_store e1' copy builder in
+                             let e_m = L.build_bitcast (L.build_struct_gep e1' 0 "copy_cast" builder)  (pointer_t (pointer_t (array_t (array_t float_t rows) rows))) "copy_res" builder in
+                             let _ = L.build_store (L.build_load (L.build_load e_m "load_ptr" builder) "load_mat" builder) copy builder in
                              let tmp = L.build_alloca (array_t (array_t float_t rows) rows) "tmp" builder in
-                             let _ = L.build_store e1' tmp builder
+                             let e_tmp = L.build_bitcast (L.build_struct_gep e1' 0 "copy_cast" builder)  (pointer_t (pointer_t (array_t (array_t float_t rows) rows))) "copy_res" builder in
+                             let _ = L.build_store (L.build_load (L.build_load e_tmp "load_ptr" builder) "load_mat" builder) tmp builder
+
                              and result = L.build_alloca (array_t (array_t float_t rows) rows) "result" builder in
+                             let m = L.build_alloca matrix_f "f_init" builder in
+                             let result_struct = build_mat_init m rows rows matrix_f float_t expr builder in
+                             let result_cast = L.build_bitcast (L.build_struct_gep m 0 "f_cast" builder)  (pointer_t (pointer_t (array_t (array_t float_t rows) rows))) "f_result" builder in
 
                              for i = 0 to rows - 1 do
                                  for j = 0 to rows - 1 do
@@ -610,7 +667,7 @@ let build_function_body fdecl =
                                      done;
                                  done;
                                  ignore (L.build_store (L.build_load result "load" builder) tmp builder)
-                             done; L.build_load result "prod" builder
+                             done; ignore (L.build_store result result_cast builder); result_struct
                 | _ -> raise (Failure "unsupported matrix type"))
             | _ -> raise (Invalid_argument "invalid arguments to matrix binary operator"))
         | _ -> raise (Invalid_argument "invalid argument type"))
@@ -712,8 +769,9 @@ let build_function_body fdecl =
         (* Get llvalue of identifier s *)
         let (ptr, mp) = lookup_map s in
         (* Check if both LHS and RHS are matrices *)
-        (match (is_matrix ptr) with
-            true    -> if (L.string_of_lltype (L.type_of e') <> "%matrix_i*" &&
+        (match (is_matrix_ptr ptr) with
+            true   ->
+                      if (L.string_of_lltype (L.type_of e') <> "%matrix_i*" &&
                            L.string_of_lltype (L.type_of e') <> "%matrix_f*" &&
                            L.string_of_lltype (L.type_of e') <> "%matrix_b*" )
                       then raise (Failure "error: matrix must be assigned to a matrix")
@@ -733,7 +791,7 @@ let build_function_body fdecl =
                       Hashtbl.add mp s (m, rh_ty);
                       reassign_mat m e' rows cols lltype builder; e'
             (* Assign value normally *)
-          | false   -> let _  = L.build_store e' (lookup s) builder in e'
+          | false  -> let _  = L.build_store e' (lookup s) builder in e'
              (* let typ1 = L.string_of_lltype (L.type_of (L.build_load ptr "tmp" builder)) in
              let typ2 = L.string_of_lltype (L.type_of e') in
              if (typ1 <> typ2) then failwith ("Semantic error : type "^typ1^" is assigned with type " ^typ2); *)
@@ -746,7 +804,6 @@ let build_function_body fdecl =
         | A.String -> L.build_call printf_func [| string_format_str ; (e') |] "printstr" builder
         | _        -> raise (Failure "invalid print operation")
         )
-    (* | SCall ("printstr", [e]) -> L.build_call printf_func [| string_format_str ; (expr builder e) |] "printstr" builder *)
     | SMatLit(mat, r, c) ->
       let (_, sx) = List.hd (List.hd mat) in (match sx with
         | SBoolLit _  -> build_mat_lit mat r c matrix_b i1_t expr builder
@@ -758,8 +815,9 @@ let build_function_body fdecl =
         let col = expr builder col in
         let typ = lookup_typ id in
         let ptr = lookup id in
-        (match (is_matrix ptr) with
-          true      -> let (lltype, r, c) = (match typ with
+        (match (is_matrix_ptr ptr) with
+          true      ->
+                        let (lltype, r, c) = (match typ with
                           A.Matrix(ty, rows, cols) -> (match ty with
                                                   A.Int -> i32_t, rows, cols
                                                 | A.Float -> float_t, rows, cols
@@ -772,7 +830,7 @@ let build_function_body fdecl =
                         let m_mat_cast = L.build_load (L.build_bitcast m_mat (pointer_t (pointer_t (array_t (array_t lltype c) r))) "m_mat_cast" builder) "m_mat_elem" builder in
                         let reg = L.build_gep m_mat_cast [| L.const_int i32_t 0; row; col |] id builder in
                         L.build_load reg id builder
-        | false     -> raise (Failure "invalid matrix access")
+        | false     -> raise (Failure ("invalid matrix access in type " ^ (L.string_of_lltype (L.type_of ptr))))
         )
         (* let reg = L.build_gep (lookup id) [| zero; row; col |] id builder in
         L.build_load reg id builder *)
@@ -781,8 +839,9 @@ let build_function_body fdecl =
         let col   = expr builder col in
         let typ = lookup_typ id in
         let ptr = lookup id in
-        (match (is_matrix ptr) with
-          true      -> let (lltype, r, c) = (match typ with
+        (match (is_matrix_ptr ptr) with
+          true      ->
+                        let (lltype, r, c) = (match typ with
                           A.Matrix(ty, rows, cols) -> (match ty with
                                                   A.Int -> i32_t, rows, cols
                                                 | A.Float -> float_t, rows, cols
@@ -817,6 +876,27 @@ let build_function_body fdecl =
     | SCall (f, act) ->
         let (fdef, fdecl) = StringMap.find f function_decls in
         let actuals = List.rev (List.map (expr builder) (List.rev act)) in
+        (* Flatten matrix pointers into matrix structs *)
+        let flatten_actuals a = (match (is_matrix_ptr a) with
+          true    -> (L.build_load a "flat_act" builder)
+        | false   -> a
+          )
+        in
+        (* If matrix is a formal/actual, update the formal definition to the actual *)
+        let update_matrix_actuals a f = (match (get_styp a) with
+          A.Matrix(t, r, c) -> (match (get_styp f) with
+                                  A.Matrix(_, _, _) -> (A.Matrix(t,r,c), (snd f))
+                                | _                    -> raise (Failure "actuals and formals don't map")
+                                )
+        | _                 -> f
+        ) in
+        let dynamic_formals = List.map2 (update_matrix_actuals) act fdecl.sformals in
+        let _ = print_string ("\nfunction " ^ fdecl.sfname ^ " has BEFORE formals " ^ (String.concat "  "(List.map A.string_of_typ (List.map (fun (x,y) -> x) fdecl.sformals)))) in
+        let _ = fdecl.sformals <- dynamic_formals in
+        let actuals = List.map (flatten_actuals) actuals in
+        let _ = print_string ("\nfunction " ^ fdecl.sfname ^ " has actuals " ^ (String.concat "  "(List.map A.string_of_typ (List.map (fun (x,y) -> x) act)))) in
+        let _ = print_string ("\nfunction " ^ fdecl.sfname ^ " has AFTER formals " ^ (String.concat "  "(List.map A.string_of_typ (List.map (fun (x,y) -> x) fdecl.sformals)))) in
+
         let result = (match fdecl.styp with
             | A.Void -> ""
             | _ -> f ^ "_result") in
@@ -858,121 +938,132 @@ and produce control flow, not values *)
           in builder
   | SExpr e -> let _ = expr builder e in builder
 
-      | SContinue -> let _ = L.build_br (List.hd !continue_stack) builder in builder
-      | SBreak n -> let _ = L.build_br (List.nth !break_stack (n - 1)) builder in builder
-      | SReturn e -> let _ = match fdecl.styp with
-                              (* Special "return nothing" instr *)
-                              A.Void -> L.build_ret_void builder
-                              (* Build return statement *)
-      | _ -> L.build_ret (expr builder e) builder
-      in builder
-      (* The order that we create and add the basic blocks for an If statement
-      doesnt 'really' matter (seemingly). What hooks them up in the right order
-      are the build_br functions used at the end of the then and else blocks (if
-          they don't already have a terminator) and the build_cond_br function at
-      the end, which adds jump instructions to the "then" and "else" basic blocks *)
-      | SIf (predicate, then_stmt, else_stmt) ->
-              let bool_val = expr builder predicate in
-              (* Add "merge" basic block to our function's list of blocks *)
-              let merge_bb = L.append_block context "merge" the_function in
-              (* Partial function used to generate branch to merge block *)
-              let branch_instr = L.build_br merge_bb in
+  | SContinue -> let _ = L.build_br (List.hd !continue_stack) builder in builder
+  | SBreak n  -> let _ = L.build_br (List.nth !break_stack (n - 1)) builder in builder
+  | SReturn e -> let _ = (match fdecl.styp with
+                          (* Special "return nothing" instr *)
+                          A.Void -> L.build_ret_void builder
+                          (* Matrix return statements *)
+                        | A.Matrix(ty, r, c) -> let _ = fdecl.styp <- (A.Matrix(ty, r, c)) in
+                                                let _ = print_string ("\nnew type in function " ^fdecl.sfname ^ " with return "^ A.string_of_typ fdecl.styp) in
+                                                (match ty with
+                                                  (* A.Int   -> L.build_ret (L.build_load (expr builder e) "return_mat" builder) builder
+                                                | A.Float -> L.build_ret (L.build_load (expr builder e) "return_mat" builder) builder
+                                                | A.Bool  -> L.build_ret (L.build_load (expr builder e) "return_mat" builder) builder *)
+                                                A.Int   -> L.build_ret (L.build_load (expr builder e) "return_mat" builder) builder
+                                              | A.Float -> L.build_ret (L.build_load (expr builder e) "return_mat" builder) builder
+                                              | A.Bool  -> L.build_ret (L.build_load (expr builder e) "return_mat" builder) builder
+                                                | _       -> raise (Failure "error: invalid matrix type"))
+                          (* Build return statement *)
+                        | _ -> L.build_ret (expr builder e) builder)
+                 in builder
+  (* The order that we create and add the basic blocks for an If statement
+  doesnt 'really' matter (seemingly). What hooks them up in the right order
+  are the build_br functions used at the end of the then and else blocks (if
+      they don't already have a terminator) and the build_cond_br function at
+  the end, which adds jump instructions to the "then" and "else" basic blocks *)
+  | SIf (predicate, then_stmt, else_stmt) ->
+      let bool_val = expr builder predicate in
+      (* Add "merge" basic block to our function's list of blocks *)
+      let merge_bb = L.append_block context "merge" the_function in
+      (* Partial function used to generate branch to merge block *)
+      let branch_instr = L.build_br merge_bb in
 
-              (* Same for "then" basic block *)
-              let then_bb = L.append_block context "then" the_function in
-              (* Position builder in "then" block and build the statement *)
-    let then_builder = stmt (L.builder_at_end context then_bb) then_stmt in
-    (* Add a branch to the "then" block (to the merge block)
-           if a terminator doesn't already exist for the "then" block *)
-    let () = add_terminal then_builder branch_instr in
+      (* Same for "then" basic block *)
+      let then_bb = L.append_block context "then" the_function in
+      (* Position builder in "then" block and build the statement *)
+      let then_builder = stmt (L.builder_at_end context then_bb) then_stmt in
+      (* Add a branch to the "then" block (to the merge block)
+             if a terminator doesn't already exist for the "then" block *)
+      let () = add_terminal then_builder branch_instr in
 
-    (* Identical to stuff we did for "then" *)
-    let else_bb = L.append_block context "else" the_function in
-    let else_builder = stmt (L.builder_at_end context else_bb) else_stmt in
-    let () = add_terminal else_builder branch_instr in
+      (* Identical to stuff we did for "then" *)
+      let else_bb = L.append_block context "else" the_function in
+      let else_builder = stmt (L.builder_at_end context else_bb) else_stmt in
+      let () = add_terminal else_builder branch_instr in
 
-    (* Generate initial branch instruction perform the selection of "then"
-         or "else". Note we're using the builder we had access to at the start
-         of this alternative. *)
-    let _ = L.build_cond_br bool_val then_bb else_bb builder in
-    (* Move to the merge block for further instruction building *)
-    L.builder_at_end context merge_bb
+      (* Generate initial branch instruction perform the selection of "then"
+           or "else". Note we're using the builder we had access to at the start
+           of this alternative. *)
+      let _ = L.build_cond_br bool_val then_bb else_bb builder in
+      (* Move to the merge block for further instruction building *)
+      L.builder_at_end context merge_bb
 
-      | SWhile (predicate, body) ->
-              (* First create basic block for condition instructions -- this will
-          serve as destination in the case of a loop *)
-    let pred_bb = L.append_block context "while" the_function in
-    (* In current block, branch to predicate to execute the condition *)
-    let _ = L.build_br pred_bb builder in
+  | SWhile (predicate, body) ->
+      (* First create basic block for condition instructions -- this will
+         serve as destination in the case of a loop *)
+      let pred_bb = L.append_block context "while" the_function in
+      (* In current block, branch to predicate to execute the condition *)
+      let _ = L.build_br pred_bb builder in
 
-    (* Make room for a body block for now. We'll build it later. *)
-    let body_bb = L.append_block context "while_body" the_function in
+      (* Make room for a body block for now. We'll build it later. *)
+      let body_bb = L.append_block context "while_body" the_function in
 
-    (* Generate the predicate code in the predicate block *)
-    let pred_builder = L.builder_at_end context pred_bb in
-    let bool_val = expr pred_builder predicate in
+      (* Generate the predicate code in the predicate block *)
+      let pred_builder = L.builder_at_end context pred_bb in
+      let bool_val = expr pred_builder predicate in
 
-    (* Hook everything up *)
-    let merge_bb = L.append_block context "merge" the_function in
-    let _ = L.build_cond_br bool_val body_bb merge_bb pred_builder in
-    let _ = L.builder_at_end context merge_bb in
+      (* Hook everything up *)
+      let merge_bb = L.append_block context "merge" the_function in
+      let _ = L.build_cond_br bool_val body_bb merge_bb pred_builder in
+      let _ = L.builder_at_end context merge_bb in
 
-    (* Add the predicate and merge blocks to our lists of jump points *)
-    let _ = continue_stack := pred_bb :: !continue_stack in
-    let _ = break_stack := merge_bb :: !break_stack in
+      (* Add the predicate and merge blocks to our lists of jump points *)
+      let _ = continue_stack := pred_bb :: !continue_stack in
+      let _ = break_stack := merge_bb :: !break_stack in
 
-    (* Create the body's block, generate the code for it, and add a branch
-          back to the predicate block (we always jump back at the end of a while
-          loop's body, unless we returned or something) *)
-    let while_builder = stmt (L.builder_at_end context body_bb) body in
+      (* Create the body's block, generate the code for it, and add a branch
+            back to the predicate block (we always jump back at the end of a while
+            loop's body, unless we returned or something) *)
+      let while_builder = stmt (L.builder_at_end context body_bb) body in
 
-    (* Now that we've exited a loop level, pop the jump stacks *)
-    let _ = continue_stack := List.tl !continue_stack in
-    let _ = break_stack := List.tl !break_stack in
+      (* Now that we've exited a loop level, pop the jump stacks *)
+      let _ = continue_stack := List.tl !continue_stack in
+      let _ = break_stack := List.tl !break_stack in
 
-    let () = add_terminal while_builder (L.build_br pred_bb)
-    in L.builder_at_end context merge_bb
+      let () = add_terminal while_builder (L.build_br pred_bb)
+      in L.builder_at_end context merge_bb
 
-      (* To support `continue` in for loops, we need to reimplement SWhile with
-       * the post-loop action added to the merge basic block *)
-      | SFor (preact, predicate, postact, body) ->
-              (* Emit preact first before we continue *)
-              let _ = expr builder preact in
+    (* To support `continue` in for loops, we need to reimplement SWhile with
+     * the post-loop action added to the merge basic block *)
+    | SFor (preact, predicate, postact, body) ->
+      (* Emit preact first before we continue *)
+      let _ = expr builder preact in
 
-              let pred_bb = L.append_block context "while" the_function in
-              let _ = L.build_br pred_bb builder in
+      let pred_bb = L.append_block context "while" the_function in
+      let _ = L.build_br pred_bb builder in
 
-              let body_bb = L.append_block context "while_body" the_function in
+      let body_bb = L.append_block context "while_body" the_function in
 
-              let pred_builder = L.builder_at_end context pred_bb in
-              let bool_val = expr pred_builder predicate in
+      let pred_builder = L.builder_at_end context pred_bb in
+      let bool_val = expr pred_builder predicate in
 
-              let merge_bb = L.append_block context "merge" the_function in
-              let _ = L.build_cond_br bool_val body_bb merge_bb pred_builder in
-              let _ = L.builder_at_end context merge_bb in
+      let merge_bb = L.append_block context "merge" the_function in
+      let _ = L.build_cond_br bool_val body_bb merge_bb pred_builder in
+      let _ = L.builder_at_end context merge_bb in
 
-              (* Emit a separate block for the post-action that continue statements
-               * can branch to *)
-    let postact_bb = L.append_block context "postact" the_function in
+        (* Emit a separate block for the post-action that continue statements
+         * can branch to *)
+      let postact_bb = L.append_block context "postact" the_function in
 
-    (* Add the post-action and merge blocks to our lists of jump points *)
-    let _ = continue_stack := postact_bb :: !continue_stack in
-    let _ = break_stack := merge_bb :: !break_stack in
+      (* Add the post-action and merge blocks to our lists of jump points *)
+      let _ = continue_stack := postact_bb :: !continue_stack in
+      let _ = break_stack := merge_bb :: !break_stack in
 
-    let while_builder = stmt (L.builder_at_end context body_bb) body in
+      let while_builder = stmt (L.builder_at_end context body_bb) body in
 
-    (* Pop the jump stacks *)
-    let _ = continue_stack := List.tl !continue_stack in
-    let _ = break_stack := List.tl !break_stack in
+      (* Pop the jump stacks *)
+      let _ = continue_stack := List.tl !continue_stack in
+      let _ = break_stack := List.tl !break_stack in
 
-    (* Emit the post-action itself *)
-    let postact_builder = L.builder_at_end context postact_bb in
-    let _ = expr postact_builder postact in
+      (* Emit the post-action itself *)
+      let postact_builder = L.builder_at_end context postact_bb in
+      let _ = expr postact_builder postact in
 
-    let _ = add_terminal postact_builder (L.build_br pred_bb) in
-    let () = add_terminal while_builder (L.build_br postact_bb)
-    in L.builder_at_end context merge_bb
-    in
+      let _ = add_terminal postact_builder (L.build_br pred_bb) in
+      let () = add_terminal while_builder (L.build_br postact_bb)
+      in L.builder_at_end context merge_bb
+      in
 
     (* Build the code for each statement in the function *)
     let builder = stmt builder (SBlock (fdecl.sbody, db)) in

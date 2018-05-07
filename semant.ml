@@ -448,6 +448,7 @@ let check (globals, functions) =
               " has illegal auto-declared parameter " ^ n
             (* Matrix param check *)
             in let ft' = if is_mat et && is_mat ft && (mat_typ et = mat_typ ft) then et else ft
+            in let _ = print_string ("\n" ^fname ^ " has argument of type " ^ (string_of_typ et))
             in let void_err = "illegal void formal " ^ n
             in let _ = if ft = Auto then raise (Failure auto_err)
             in let _ = if ft = Void then raise (Failure void_err)
@@ -527,8 +528,8 @@ let check (globals, functions) =
           (* If function return type is AUto, update return type to binding *)
           if func.typ = Auto then func.typ <- t;
           (* If function return type is a matrix, update return to specific matrix binding *)
-          if is_mat func.typ && is_mat t && (mat_typ func.typ = mat_typ t) then func.typ <- func.typ;
           (* If returning matrix, check if type match *)
+          if is_mat func.typ && is_mat t && (mat_typ func.typ = mat_typ t) then func.typ <- t;
           if is_mat func.typ && is_mat t && (mat_typ func.typ = mat_typ t) then SReturn(t, e')
           else if t = func.typ then SReturn(func.typ, e')
           else if func.fwasauto
