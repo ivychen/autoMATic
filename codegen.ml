@@ -232,18 +232,20 @@ let build_function_body fdecl =
             | A.Mod     -> L.build_srem  e1' e2' "tmp" builder
             | _         -> raise (Failure "internal error: semant should have rejected and/or on int"))
 
-        | A.Matrix(ty, rows, mid) -> (match e2 with
-            | (A.Matrix(_, _, cols), SId s2) -> (match ty with
-                | A.Int -> let copy = L.build_alloca (array_t (array_t i32_t mid) rows) "copy" builder in 
-                    let _ = L.build_store e1' copy builder 
-                    and result = L.build_alloca (array_t (array_t i32_t cols) rows) "result" builder in (match op with 
+        | A.Matrix(ty, rows, mid1) -> (match e2 with
+            | (A.Matrix(ty, mid2, cols), _) -> (match ty with
+                | A.Int -> let copy1 = L.build_alloca (array_t (array_t i32_t mid1) rows) "copy" builder in 
+                           let _ = L.build_store e1' copy1 builder in
+                           let copy2 = L.build_alloca (array_t (array_t i32_t cols) mid2) "copy" builder in 
+                           let _ = L.build_store e2' copy2 builder 
+                           and result = L.build_alloca (array_t (array_t i32_t cols) rows) "result" builder in (match op with 
                     | A.Add      -> for i = 0 to rows - 1 do
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
                                             let col = L.const_int i32_t j in
-                                            let v1 = L.build_load (L.build_gep copy 
+                                            let v1 = L.build_load (L.build_gep copy1 
                                                 [| zero; row; col |] "gep" builder) "load" builder 
-                                            and v2 = L.build_load (L.build_gep (lookup s2) 
+                                            and v2 = L.build_load (L.build_gep copy2 
                                                 [| zero; row; col |] "gep" builder) "load" builder in
                                             let sum = L.build_add v1 v2 "sum" builder 
                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder
@@ -254,9 +256,9 @@ let build_function_body fdecl =
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
                                             let col = L.const_int i32_t j in
-                                            let v1 = L.build_load (L.build_gep copy 
+                                            let v1 = L.build_load (L.build_gep copy1 
                                                 [| zero; row; col |] "gep" builder) "load" builder 
-                                            and v2 = L.build_load (L.build_gep (lookup s2) 
+                                            and v2 = L.build_load (L.build_gep copy2 
                                                 [| zero; row; col |] "gep" builder) "load" builder in
                                             let diff = L.build_sub v1 v2 "diff" builder 
                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder
@@ -274,11 +276,11 @@ let build_function_body fdecl =
                                         let row = L.const_int i32_t i in 
                                         for j = 0 to cols - 1 do
                                             let col = L.const_int i32_t j in
-                                            for k = 0 to mid - 1 do
+                                            for k = 0 to mid1 - 1 do
                                                 let m = L.const_int i32_t k in
-                                                let v1 = L.build_load (L.build_gep copy
+                                                let v1 = L.build_load (L.build_gep copy1
                                                     [| zero; row; m |] "gep" builder) "load" builder 
-                                                and v2 = L.build_load (L.build_gep (lookup s2) 
+                                                and v2 = L.build_load (L.build_gep copy2 
                                                     [| zero; m; col |] "gep" builder) "load" builder in
                                                 let prod = L.build_mul v1 v2 "prod" builder 
                                                 and reg = L.build_gep result [| zero; row; col |] "gep" builder in
@@ -292,9 +294,9 @@ let build_function_body fdecl =
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
                                             let col = L.const_int i32_t j in
-                                            let v1 = L.build_load (L.build_gep copy 
+                                            let v1 = L.build_load (L.build_gep copy1 
                                                 [| zero; row; col |] "gep" builder) "load" builder 
-                                            and v2 = L.build_load (L.build_gep (lookup s2) 
+                                            and v2 = L.build_load (L.build_gep copy2 
                                                 [| zero; row; col |] "gep" builder) "load" builder in
                                             let prod = L.build_mul v1 v2 "prod" builder 
                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder
@@ -305,9 +307,9 @@ let build_function_body fdecl =
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
                                             let col = L.const_int i32_t j in
-                                            let v1 = L.build_load (L.build_gep copy 
+                                            let v1 = L.build_load (L.build_gep copy1 
                                                 [| zero; row; col |] "gep" builder) "load" builder 
-                                            and v2 = L.build_load (L.build_gep (lookup s2) 
+                                            and v2 = L.build_load (L.build_gep copy2 
                                                 [| zero; row; col |] "gep" builder) "load" builder in
                                             let quot = L.build_sdiv v1 v2 "quot" builder 
                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder
@@ -315,16 +317,18 @@ let build_function_body fdecl =
                                         done;
                                     done; L.build_load result "elemdiv" builder
                     | _ -> raise (Invalid_argument "invalid matrix binary operator"))
-                | A.Float -> let copy = L.build_alloca (array_t (array_t float_t mid) rows) "copy" builder in 
-                    let _ = L.build_store e1' copy builder
-                    and result = L.build_alloca (array_t (array_t float_t cols) rows) "result" builder in (match op with 
+                | A.Float -> let copy1 = L.build_alloca (array_t (array_t float_t mid1) rows) "copy" builder in 
+                             let _ = L.build_store e1' copy1 builder in
+                             let copy2 = L.build_alloca (array_t (array_t float_t cols) mid2) "copy" builder in 
+                             let _ = L.build_store e2' copy2 builder 
+                             and result = L.build_alloca (array_t (array_t float_t cols) rows) "result" builder in (match op with 
                     | A.Add      -> for i = 0 to rows - 1 do
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
                                             let col = L.const_int i32_t j in
-                                            let v1 = L.build_load (L.build_gep copy 
+                                            let v1 = L.build_load (L.build_gep copy1 
                                                 [| zero; row; col |] "gep" builder) "load" builder 
-                                            and v2 = L.build_load (L.build_gep (lookup s2) 
+                                            and v2 = L.build_load (L.build_gep copy2 
                                                 [| zero; row; col |] "gep" builder) "load" builder in
                                             let sum = L.build_fadd v1 v2 "sum" builder 
                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder
@@ -335,9 +339,9 @@ let build_function_body fdecl =
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
                                             let col = L.const_int i32_t j in
-                                            let v1 = L.build_load (L.build_gep copy 
+                                            let v1 = L.build_load (L.build_gep copy1 
                                                 [| zero; row; col |] "gep" builder) "load" builder 
-                                            and v2 = L.build_load (L.build_gep (lookup s2) 
+                                            and v2 = L.build_load (L.build_gep copy2 
                                                 [| zero; row; col |] "gep" builder) "load" builder in
                                             let diff = L.build_fsub v1 v2 "diff" builder 
                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder
@@ -355,11 +359,11 @@ let build_function_body fdecl =
                                         let row = L.const_int i32_t i in 
                                         for j = 0 to cols - 1 do
                                             let col = L.const_int i32_t j in
-                                            for k = 0 to mid - 1 do
+                                            for k = 0 to mid1 - 1 do
                                                 let m = L.const_int i32_t k in
-                                                let v1 = L.build_load (L.build_gep copy 
+                                                let v1 = L.build_load (L.build_gep copy1 
                                                     [| zero; row; m |] "gep" builder) "load" builder 
-                                                and v2 = L.build_load (L.build_gep (lookup s2) 
+                                                and v2 = L.build_load (L.build_gep copy2 
                                                     [| zero; m; col |] "gep" builder) "load" builder in
                                                 let prod = L.build_fmul v1 v2 "prod" builder 
                                                 and reg = L.build_gep result [| zero; row; col |] "gep" builder in
@@ -373,9 +377,9 @@ let build_function_body fdecl =
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
                                             let col = L.const_int i32_t j in
-                                            let v1 = L.build_load (L.build_gep copy 
+                                            let v1 = L.build_load (L.build_gep copy1 
                                                 [| zero; row; col |] "gep" builder) "load" builder 
-                                            and v2 = L.build_load (L.build_gep (lookup s2) 
+                                            and v2 = L.build_load (L.build_gep copy2 
                                                 [| zero; row; col |] "gep" builder) "load" builder in
                                             let prod = L.build_fmul v1 v2 "prod" builder 
                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder
@@ -386,9 +390,9 @@ let build_function_body fdecl =
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
                                             let col = L.const_int i32_t j in
-                                            let v1 = L.build_load (L.build_gep copy 
+                                            let v1 = L.build_load (L.build_gep copy1 
                                                 [| zero; row; col |] "gep" builder) "load" builder 
-                                            and v2 = L.build_load (L.build_gep (lookup s2) 
+                                            and v2 = L.build_load (L.build_gep copy2 
                                                 [| zero; row; col |] "gep" builder) "load" builder in
                                             let quot = L.build_fdiv v1 v2 "quot" builder 
                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder
@@ -415,7 +419,7 @@ let build_function_body fdecl =
                                      let row = L.const_int i32_t i in 
                                      for j = 0 to rows - 1 do
                                          let col = L.const_int i32_t j in
-                                         for k = 0 to mid - 1 do
+                                         for k = 0 to mid1 - 1 do
                                              let m = L.const_int i32_t k in
                                              let v1 = L.build_load (L.build_gep result 
                                                  [| zero; row; m |] "gep" builder) "load" builder 
@@ -447,7 +451,7 @@ let build_function_body fdecl =
                                      let row = L.const_int i32_t i in 
                                      for j = 0 to rows - 1 do
                                          let col = L.const_int i32_t j in
-                                         for k = 0 to mid - 1 do
+                                         for k = 0 to mid1 - 1 do
                                              let m = L.const_int i32_t k in
                                              let v1 = L.build_load (L.build_gep result
                                                  [| zero; row; m |] "gep" builder) "load" builder 
