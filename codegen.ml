@@ -198,7 +198,7 @@ let build_function_body fdecl =
             | A.Sub     -> L.build_fsub e1' e2' "tmp" builder
             | A.Mult    -> L.build_fmul e1' e2' "tmp" builder
             | A.Exp     -> let (ty, _) = e2 in
-                           let safe_cast = if ty = A.Int then L.const_sitofp e2' float_t else e2'
+                           let safe_cast = if ty = A.Int then L.build_sitofp e2' float_t "safe_cast" builder else e2'
                            in L.build_call pow_func [| e1'; safe_cast |] "exp" builder
             | A.Div     -> L.build_fdiv e1' e2' "tmp" builder
             | A.Equal   -> L.build_fcmp L.Fcmp.Oeq e1' e2' "tmp" builder
@@ -215,10 +215,10 @@ let build_function_body fdecl =
             | A.Sub     -> L.build_sub e1' e2' "tmp" builder
             | A.Mult    -> L.build_mul e1' e2' "tmp" builder
             | A.Exp     -> let (ty, _) = e2 in
-                           let cast = L.const_sitofp e1' float_t
-                           and safe_cast = if ty = A.Int then L.const_sitofp e2' float_t else e2' in
+                           let cast = L.build_sitofp e1' float_t "cast" builder
+                           and safe_cast = if ty = A.Float then e2' else L.build_sitofp e2' float_t "safe_cast" builder in
                            let result = L.build_call pow_func [| cast; safe_cast |] "exp" builder in
-                           let return = if ty = A.Int then L.const_fptosi result i32_t else result
+                           let return = if ty = A.Int then L.build_fptosi result i32_t "result" builder else result
                            in return
             | A.Div     -> L.build_sdiv e1' e2' "tmp" builder
             | A.And     -> L.build_and  e1' e2' "tmp" builder
