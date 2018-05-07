@@ -459,7 +459,12 @@ let check (globals, functions) =
             ty = t';
             ety = None;
             const = false;
-            inited = (e' != SNoexpr);
+            inited = match e' with SNoexpr -> 
+                                      (match t' with
+                                         (* Treat empty matrices as initialized *)
+                                         Matrix(_, r, c) -> (r = 0 || c = 0)
+                                       | _ -> false)
+                                 | _ -> true;
           }
           in
           let _ = if Hashtbl.mem blk.symtbl n
