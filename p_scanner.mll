@@ -21,3 +21,6 @@ and directive = parse
 | "include"                 { INCLUDE }
 | "define"                  { DEFINE }
 | "undef"                   { UNDEF }
+| "ifdef"                   { IFDEF }
+| "ifndef"                  { IFNDEF }
+| "end"                     { END }

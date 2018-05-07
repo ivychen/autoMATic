@@ -1,6 +1,6 @@
 %{ open P_ast %}
 
-%token INCLUDE DEFINE UNDEF /* IF IFDEF IFNDEF ENDIF */
+%token INCLUDE DEFINE UNDEF IFDEF IFNDEF END
 %token ENDL
 %token WHITE
 %token <string> VAR
@@ -13,7 +13,7 @@
 %type <P_ast.program> program
 
 %left INCLUDE DEFINE UNDEF
-
+%right END
 
 %%
 
@@ -28,11 +28,14 @@ stmts:
 stmt:
 | passthrough                       { $1 }
 | VAR                               { Var($1) }
-| INCLUDE ws STRLIT ws ENDL         { Inc($3) }
-| DEFINE ws VAR ws INTLIT ws ENDL   { DefInt($3, $5) }
-| DEFINE ws VAR ws VAR ws ENDL      { DefVar($3, $5) }
-| DEFINE ws VAR ws STRLIT ws ENDL   { DefStrLit($3, $5) }
-| UNDEF ws VAR ws ENDL              { Undef($3) }
+| INCLUDE w STRLIT w ENDL           { Inc($3) }
+| DEFINE w VAR w INTLIT w ENDL      { DefInt($3, $5) }
+| DEFINE w VAR w VAR w ENDL         { DefVar($3, $5) }
+| DEFINE w VAR w STRLIT w ENDL      { DefStrLit($3, $5) }
+| UNDEF w VAR w ENDL                { Undef($3) }
+| IFDEF w VAR w ENDL                { Ifdef($3) }
+| IFNDEF w VAR w ENDL               { Ifndef($3) }
+| END w ENDL                        { End }
 
 passthrough:
 | WHITE                             { Pass(" ") }
@@ -41,7 +44,7 @@ passthrough:
 | INTLIT                            { Pass(string_of_int $1) }
 | PASS                              { Pass($1) }
 
-ws:
+w:
 | /* nothing */                     {  }
-| ws WHITE                          {  }
+| w WHITE                           {  }
 | WHITE                             {  }
