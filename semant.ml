@@ -270,6 +270,8 @@ let check (globals, functions) =
           | Add | Sub | ElemDiv | ElemMult when (is_mat t1 && is_mat t2 && (mat_dim t1 = mat_dim t2) && (mat_typ t1 = mat_typ t2))  -> t1
           (* Matrix multiplication requires matrices of the same inner dimensions and type *)
           | Mult when (is_mat t1 && is_mat t2 && (mat_typ t1 = mat_typ t2) && ((snd (mat_dim t1)) = (fst (mat_dim t2)))) -> Matrix(mat_typ t1, fst (mat_dim t1), snd (mat_dim t2))
+          (* Matrix exponentiation only valid for integer powers and square matrices *)
+          | Exp when (is_mat t1 && t2 = Int && ((snd (mat_dim t1)) = (fst (mat_dim t1)))) -> t1
           | Less | Leq | Greater | Geq
                      when same && (t1 = Int || t1 = Float) -> Bool
           | And | Or when same && t1 = Bool -> Bool
