@@ -201,7 +201,12 @@ let check (globals, functions) =
         | MatAccess(s, e1, e2) ->
             expr_inited (Id(s)) && expr_inited e1 && expr_inited e2
         | MatAssign(s, e1, e2, e3) ->
-            expr_inited (Id(s)) && expr_inited e1 && expr_inited e2 && expr_inited e3
+            (* We can't check if matrices are initialized on an element-wise level,
+             * so if the user sets one element just assume the whole thing is
+             * initialized now *)
+            let res = expr_inited e1 && expr_inited e2 && expr_inited e3 in
+            let entry = entry_of_identifier s tbl in
+            let _ = entry.inited <- true in res
         | Call(_, args) ->
             List.iter (fun e -> ignore (expr_inited e)) args; true
         in (expr_inited e)
