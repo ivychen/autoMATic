@@ -265,6 +265,11 @@ let check (globals, functions) =
           and (t2, e2') = expr blk e2 in
           (* All binary operators require operands of the same type *)
           let same = t1 = t2 in
+          (* Matrix helpers *)
+          let mat_match = (is_mat t1 && is_mat t2 && (mat_typ t1 = mat_typ t2)) in
+          let mat_nonbool_match = mat_match && mat_typ t1 != Bool in
+          let dim_eq = (mat_dim t1 = mat_dim t2) in
+          let inner_dim_eq x y = snd (mat_dim x) = fst (mat_dim y) in
           (* Determine expression type based on operator and operand types *)
           let ty = (match op with
             Add | Sub | Mult | Div | Mod | Exp when same && t1 = Int      -> Int
@@ -272,14 +277,18 @@ let check (globals, functions) =
           | Exp when (t1 = Int && t2 = Float) || (t1 = Float && t2 = Int) -> Float
           | Equal | Neq                        when same                  -> Bool
           (* Matrix Addition/Subtraction/ElemDiv/ElemMult require matrices of the same dimensions and type *)
-          | Add | Sub | ElemDiv | ElemMult when (is_mat t1 && is_mat t2 && (mat_dim t1 = mat_dim t2) && (mat_typ t1 = mat_typ t2))  -> t1
+          (* We don't allow these operations on boolean matrices *)
+          | Add | Sub | ElemDiv | ElemMult when mat_nonbool_match && dim_eq -> t1
           (* Matrix multiplication requires matrices of the same inner dimensions and type *)
-          | Mult when (is_mat t1 && is_mat t2 && (mat_typ t1 = mat_typ t2) && ((snd (mat_dim t1)) = (fst (mat_dim t2)))) -> Matrix(mat_typ t1, fst (mat_dim t1), snd (mat_dim t2))
-          (* Matrix exponentiation only valid for integer powers and square matrices *)
-          | Exp when (is_mat t1 && t2 = Int && ((snd (mat_dim t1)) = (fst (mat_dim t1)))) -> t1
+          (* Also not allowed on boolean matrices *)
+          | Mult when mat_nonbool_match && inner_dim_eq t1 t2 -> Matrix(mat_typ t1, fst (mat_dim t1), snd (mat_dim t2))
+          (* Matrix exponentiation only valid for integer powers and square, non-boolean matrices *)
+          | Exp when is_mat t1 && mat_typ t1 != Bool && t2 = Int && inner_dim_eq t1 t1 -> t1
           | Less | Leq | Greater | Geq
                      when same && (t1 = Int || t1 = Float) -> Bool
           | And | Or when same && t1 = Bool -> Bool
+          (* Allow and/or on boolean matrices of the same size *)
+          | And | Or when mat_match && dim_eq -> t1
           | _ -> raise (Failure ("illegal binary operator " ^
                        string_of_typ t1 ^ " " ^ string_of_op op ^ " " ^
                        string_of_typ t2 ^ " in " ^ string_of_expr e)))

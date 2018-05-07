@@ -239,7 +239,7 @@ let build_function_body fdecl =
                             let copy2 = L.build_alloca (array_t (array_t i1_t cols) mid2) "copy" builder in 
                             let _ = L.build_store e2' copy2 builder 
                             and result = L.build_alloca (array_t (array_t i1_t cols) rows) "result" builder in (match op with 
-                    | A.Add      -> for i = 0 to rows - 1 do
+                    (*| A.Add      -> for i = 0 to rows - 1 do
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
                                             let col = L.const_int i32_t j in
@@ -264,7 +264,7 @@ let build_function_body fdecl =
                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder
                                             in ignore (L.build_store diff reg builder)
                                         done;
-                                    done; L.build_load result "diff" builder
+                                    done; L.build_load result "diff" builder*)
                     | A.And      -> for i = 0 to rows - 1 do
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
