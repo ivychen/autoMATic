@@ -606,6 +606,11 @@ let build_function_body fdecl =
         | A.String -> L.build_call printf_func [| string_format_str ; (e') |] "printstr" builder
         | _        -> raise (Failure "invalid print operation")
         )
+    (* casting *)
+    | SCall ("ftoi", [e]) -> 
+        L.build_fptosi (expr builder e) i32_t "fto" builder
+    | SCall ("itof", [e]) ->
+        L.build_sitofp (expr builder e) float_t "ito" builder
     (* | SCall ("printstr", [e]) -> L.build_call printf_func [| string_format_str ; (expr builder e) |] "printstr" builder *)
     | SMatLit(mat, _, _) -> let (_, sx) = List.hd (List.hd mat) in (match sx with
         | SBoolLit _ -> let i1_lists = List.map (List.map (expr builder)) mat  in
