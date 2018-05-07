@@ -234,6 +234,64 @@ let build_function_body fdecl =
 
         | A.Matrix(ty, rows, mid1) -> (match e2 with
             | (A.Matrix(ty, mid2, cols), _) -> (match ty with
+                | A.Bool -> let copy1 = L.build_alloca (array_t (array_t i1_t mid1) rows) "copy" builder in 
+                            let _ = L.build_store e1' copy1 builder in
+                            let copy2 = L.build_alloca (array_t (array_t i1_t cols) mid2) "copy" builder in 
+                            let _ = L.build_store e2' copy2 builder 
+                            and result = L.build_alloca (array_t (array_t i1_t cols) rows) "result" builder in (match op with 
+                    | A.Add      -> for i = 0 to rows - 1 do
+                                        let row = L.const_int i32_t i in
+                                        for j = 0 to cols - 1 do
+                                            let col = L.const_int i32_t j in
+                                            let v1 = L.build_load (L.build_gep copy1 
+                                                [| zero; row; col |] "gep" builder) "load" builder 
+                                            and v2 = L.build_load (L.build_gep copy2 
+                                                [| zero; row; col |] "gep" builder) "load" builder in
+                                            let sum = L.build_add v1 v2 "sum" builder 
+                                            and reg = L.build_gep result [| zero; row; col |] "gep" builder
+                                            in ignore (L.build_store sum reg builder)
+                                        done;
+                                    done; L.build_load result "sum" builder
+                    | A.Sub      -> for i = 0 to rows - 1 do
+                                        let row = L.const_int i32_t i in
+                                        for j = 0 to cols - 1 do
+                                            let col = L.const_int i32_t j in
+                                            let v1 = L.build_load (L.build_gep copy1 
+                                                [| zero; row; col |] "gep" builder) "load" builder 
+                                            and v2 = L.build_load (L.build_gep copy2 
+                                                [| zero; row; col |] "gep" builder) "load" builder in
+                                            let diff = L.build_sub v1 v2 "diff" builder 
+                                            and reg = L.build_gep result [| zero; row; col |] "gep" builder
+                                            in ignore (L.build_store diff reg builder)
+                                        done;
+                                    done; L.build_load result "diff" builder
+                    | A.And      -> for i = 0 to rows - 1 do
+                                        let row = L.const_int i32_t i in
+                                        for j = 0 to cols - 1 do
+                                            let col = L.const_int i32_t j in
+                                            let v1 = L.build_load (L.build_gep copy1 
+                                                [| zero; row; col |] "gep" builder) "load" builder 
+                                            and v2 = L.build_load (L.build_gep copy2 
+                                                [| zero; row; col |] "gep" builder) "load" builder in
+                                            let and_res = L.build_and v1 v2 "and" builder 
+                                            and reg = L.build_gep result [| zero; row; col |] "gep" builder
+                                            in ignore (L.build_store and_res reg builder)
+                                        done;
+                                    done; L.build_load result "and" builder
+                    | A.Or       -> for i = 0 to rows - 1 do
+                                        let row = L.const_int i32_t i in
+                                        for j = 0 to cols - 1 do
+                                            let col = L.const_int i32_t j in
+                                            let v1 = L.build_load (L.build_gep copy1 
+                                                [| zero; row; col |] "gep" builder) "load" builder 
+                                            and v2 = L.build_load (L.build_gep copy2 
+                                                [| zero; row; col |] "gep" builder) "load" builder in
+                                            let or_res = L.build_or v1 v2 "or" builder 
+                                            and reg = L.build_gep result [| zero; row; col |] "gep" builder
+                                            in ignore (L.build_store or_res reg builder)
+                                        done;
+                                    done; L.build_load result "or" builder
+                    | _ -> raise (Invalid_argument "invalid matrix binary operator"))
                 | A.Int -> let copy1 = L.build_alloca (array_t (array_t i32_t mid1) rows) "copy" builder in 
                            let _ = L.build_store e1' copy1 builder in
                            let copy2 = L.build_alloca (array_t (array_t i32_t cols) mid2) "copy" builder in 
