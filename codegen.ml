@@ -15,6 +15,7 @@ module L = Llvm
 module A = Ast
 open Sast
 
+module Bat = Batteries
 module StringMap = Map.Make(String)
 
 (* Code Generation from the SAST. Returns an LLVM module if successful,
@@ -59,7 +60,7 @@ let ltype_of_typ = function
                                         | A.Bool  -> array_t (array_t i1_t cols)    rows
                                         | A.Float -> array_t (array_t float_t cols) rows
                                         | _       -> raise (Failure "internal error: invalid matrix type")) *)
-    | A.Matrix(typ, rows, cols) -> (match typ with
+    | A.Matrix(typ, _, _) -> (match typ with
                                           A.Int   -> matrix_i
                                         | A.Float -> matrix_f
                                         | A.Bool  -> matrix_b
@@ -640,15 +641,49 @@ let build_function_body fdecl =
             | _ -> raise (Failure "internal error: operator not allowed"))
         | _ -> raise (Failure "internal error: operator not allowed"))
     | SAssign (s, e) ->
+        let build_arr_from_list init_mat dt =
+            (match dt with
+               0   ->  let i1_lists = List.map (List.map (expr builder)) init_mat in
+                       let list_of_arrays = List.map Array.of_list i1_lists in
+                       let i1_list_of_arrays = List.map (L.const_array i1_t) list_of_arrays in
+                       let array_of_arrays = Array.of_list i1_list_of_arrays in
+                       L.const_array (array_t i1_t (List.length (List.hd init_mat))) array_of_arrays
+            |  1   ->  let i32_lists = List.map (List.map (expr builder)) init_mat in
+                       let list_of_arrays = List.map Array.of_list i32_lists in
+                       let i32_list_of_arrays = List.map (L.const_array i32_t) list_of_arrays in
+                       let array_of_arrays = Array.of_list i32_list_of_arrays in
+                       L.const_array (array_t i32_t (List.length (List.hd init_mat))) array_of_arrays
+            |  2   ->  let float_lists = List.map (List.map (expr builder)) init_mat in
+                       let list_of_arrays = List.map Array.of_list float_lists in
+                       let float_list_of_arrays = List.map (L.const_array float_t) list_of_arrays in
+                       let array_of_arrays = Array.of_list float_list_of_arrays in
+                       L.const_array (array_t float_t (List.length (List.hd init_mat))) array_of_arrays
+            )
+        in
+        let build_mat_init prev_mat r c mat_type lltype dt =
+          let init_mat = if dt = 2 then Bat.List.make r (Bat.List.make c (A.Float, SFloatLit(0.0)))
+                         else if dt = 0 then Bat.List.make r (Bat.List.make c (A.Bool, SBoolLit(false)))
+                         else Bat.List.make r (Bat.List.make c (A.Int, SIntLit(0)))
+          in
+          let arr_mat = build_arr_from_list init_mat dt in
+          let ll_mat = L.build_alloca (array_t (array_t lltype c) r) "init_mat" builder in
+          let _ = ignore (L.build_store arr_mat ll_mat builder) in
+          let m = prev_mat in
+          let struct_mat = L.build_struct_gep m 0 "mat_struct" builder in
+          let struct_mat_cast = L.build_bitcast struct_mat (pointer_t (pointer_t (array_t (array_t lltype c) r))) "m_mat_cast" builder in
+              ignore(L.build_store ll_mat struct_mat_cast builder); m
+        in
+        let stack_build_mat_init prev_mat r c mat_type lltype dt =
+          build_mat_init prev_mat r c mat_type lltype dt
+        in
         (* Helper function to reassign matrices *)
         let reassign_mat old_mat new_mat r c lltype =
-          let old_cast = L.build_bitcast (L.build_struct_gep old_mat 0 "old_mat" builder)  ((pointer_t (array_t (array_t lltype c) r))) "old_mat_cast" builder in
-          let new_cast = L.build_bitcast (L.build_struct_gep new_mat 0 "new_mat" builder)  ((pointer_t (array_t (array_t lltype c) r))) "new_mat_cast" builder in
+          let old_cast = L.build_bitcast (L.build_struct_gep old_mat 0 "old_mat" builder)  (pointer_t (pointer_t (array_t (array_t lltype c) r))) "old_mat_cast" builder in
+          let new_cast = L.build_bitcast (L.build_struct_gep new_mat 0 "new_mat" builder)  (pointer_t (pointer_t (array_t (array_t lltype c) r))) "new_mat_cast" builder in
           let new_data = L.build_load (new_cast) "new_data" builder in
           ignore (L.build_store new_data old_cast builder)
         in
         let e' = expr builder e in
-        let lh_ty = lookup_typ s in
         let rh_ty = get_styp e in
         (* Get llvalue of identifier s *)
         let (ptr, mp) = lookup_map s in
@@ -661,16 +696,17 @@ let build_function_body fdecl =
                       else
                       (* Semantic checker ensures dimensions must be
                          compatible ie. assignment must be between matrices of same dimensions *)
-                      let (lltype, rows, cols) = (match rh_ty with
+                      let (dt, mat_typ, lltype, rows, cols) = (match rh_ty with
                           A.Matrix(typ, r, c) -> (match typ with
-                                                    A.Int   -> i32_t, r, c
-                                                  | A.Float -> float_t, r, c
-                                                  | A.Bool  -> i1_t, r, c)
+                                                    A.Int   -> 1, matrix_i, i32_t, r, c
+                                                  | A.Float -> 2, matrix_f, float_t, r, c
+                                                  | A.Bool  -> 0, matrix_b, i1_t, r, c)
                         | _                   -> raise (Failure "error: invalid assignment"))
                       in
                       (* Assign matrix on RHS to LHS and update hashtable *)
-                      Hashtbl.replace mp s (ptr, rh_ty);
-                      reassign_mat ptr e' rows cols lltype; e'
+                      let m = stack_build_mat_init ptr rows cols mat_typ lltype dt in
+                      Hashtbl.replace mp s (m, rh_ty);
+                      reassign_mat m e' rows cols lltype; e'
             (* Assign value normally *)
           | false   -> let _  = L.build_store e' (lookup s) builder in e'
              (* let typ1 = L.string_of_lltype (L.type_of (L.build_load ptr "tmp" builder)) in
@@ -709,12 +745,12 @@ let build_function_body fdecl =
       (* Helper functions to build matrix literal inside struct *)
       let build_mat_lit mat_lit r c mat_type lltype dt =
         let arr_mat = build_arr_from_list mat_lit dt in
-        (* let ll_mat = L.build_alloca (array_t (array_t lltype c) r) "lit_mat" builder in *)
-        (* let _ = ignore (L.build_store arr_mat ll_mat builder) in *)
+        let ll_mat = L.build_alloca (array_t (array_t lltype c) r) "lit_mat" builder in
+        let _ = ignore (L.build_store arr_mat ll_mat builder) in
         let m = L.build_alloca mat_type "m" builder in
         let struct_mat = L.build_struct_gep m 0 "mat_struct" builder in
-        let struct_mat_cast = L.build_bitcast mat_struct_mat ((pointer_t (array_t (array_t lltype c) r))) "m_mat_cast" builder in
-            ignore(L.build_store arr_mat struct_mat_cast builder); m
+        let struct_mat_cast = L.build_bitcast struct_mat (pointer_t (pointer_t (array_t (array_t lltype c) r))) "m_mat_cast" builder in
+            ignore(L.build_store ll_mat struct_mat_cast builder); m
       in
       let (_, sx) = List.hd (List.hd mat) in (match sx with
         | SBoolLit _  -> build_mat_lit mat r c matrix_b i1_t 0
@@ -724,8 +760,26 @@ let build_function_body fdecl =
     | SMatAccess (id, row, col) ->
         let row = expr builder row in
         let col = expr builder col in
-        let reg = L.build_gep (lookup id) [| zero; row; col |] id builder in
-        L.build_load reg id builder
+        let typ = lookup_typ id in
+        let ptr = lookup id in
+        (match (is_matrix ptr) with
+          true      -> let (lltype, r, c) = (match typ with
+                          A.Matrix(ty, rows, cols) -> (match ty with
+                                                  A.Int -> i32_t, rows, cols
+                                                | A.Float -> float_t, rows, cols
+                                                | A.Bool  -> i1_t, rows, cols
+                                                | _       -> raise (Failure "impossible")
+                                                )
+                        | _ -> raise (Failure "invalid identifier type is not matrix"))
+                        in
+                        let m_mat = (L.build_struct_gep (lookup id) 0 "m_mat" builder) in
+                        let m_mat_cast = L.build_load (L.build_bitcast m_mat (pointer_t (pointer_t (array_t (array_t lltype c) r))) "m_mat_cast" builder) "m_mat_elem" builder in
+                        let reg = L.build_gep m_mat_cast [| L.const_int i32_t 0; row; col |] id builder in
+                        L.build_load reg id builder
+        | false     -> raise (Failure "invalid matrix access")
+        )
+        (* let reg = L.build_gep (lookup id) [| zero; row; col |] id builder in
+        L.build_load reg id builder *)
     | SMatAssign (id, row, col, value) ->
         let row   = expr builder row in
         let col   = expr builder col in

@@ -359,7 +359,7 @@ let check (globals, functions) =
           | _ -> raise (Failure ("attempting to access with a non-integer type"))) in
           (* Semantically checked matrix assignment *)
           (match ty with
-              Matrix(t, _, _) | MatrixRet(t) ->  (t, SMatAccess(s, se1, se2))
+              Matrix(t, _, _) ->  (t, SMatAccess(s, se1, se2))
             | _       ->  raise(Failure("Cannot access elements of non-matrix type " ^ string_of_typ ty ^ " in " ^ string_of_expr ex)))
 
       | MatAssign(s,e1,e2,e3) as ex ->

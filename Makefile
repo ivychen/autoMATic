@@ -13,13 +13,13 @@ test : automatic.test
 .PHONY : automatic.native
 automatic.native :
 	rm -f *.o
-	ocamlbuild -use-ocamlfind -pkgs llvm,llvm.analysis -cflags -g,-w,+a-4 \
+	ocamlbuild -use-ocamlfind -pkgs batteries,llvm,llvm.analysis -cflags -g,-w,+a-4 \
 		automatic.native
 
 .PHONY : automatic.test
 automatic.test :
 	rm -f *.o
-	ocamlbuild -use-ocamlfind -pkgs llvm,llvm.analysis,bisect_ppx -cflags -g,-w,+a-4 \
+	ocamlbuild -use-ocamlfind -pkgs batteries,llvm,llvm.analysis,bisect_ppx -cflags -g,-w,+a-4 \
 		automatic.native
 
 # "make clean" removes all generated files
@@ -81,4 +81,3 @@ semant.cmo : ast.cmo
 semant.cmx : ast.cmx
 parser.cmi : ast.cmo
 p_parser.cmi: p_ast.cmo
-
