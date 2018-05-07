@@ -8,7 +8,7 @@ void f() {
 #end
 
 #ifdef MY_OTHER_VAR
-#include "stdlib_test.ic"
+#include "lib/stdlib_test.ic"
 #end
 
 #ifdef NUMBER
