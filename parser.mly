@@ -80,7 +80,7 @@ typ:
    Example: int matrix [3][3] m;
 */
 matrix_type:
-  primitive MATRIX { Matrix($1, -1, -1) }
+  primitive MATRIX { Matrix($1, 0, 0) }
 
 /* Return matrix from function, essentially a syntactic style choice
    Example: int matrix main() { ... }

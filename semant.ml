@@ -131,7 +131,7 @@ let check (globals, functions) =
     (* Return matrix dimensions (row, col) *)
     let mat_dim m = match m with
       Matrix(_, r, c) -> (r, c)
-    | _ -> (-1, -1)
+    | _ -> (0, 0)
     in
 
     (* let data_typ d = match d with
@@ -149,6 +149,12 @@ let check (globals, functions) =
        else if not (is_mat lvaluet) && is_mat rvaluet && (lvaluet = mat_typ rvaluet) then lvaluet
        (* LHS is matrix, RHS is non-matrix -> LHS *)
        else if is_mat lvaluet && not (is_mat rvaluet) && (lvaluet = mat_typ rvaluet) then lvaluet
+       (* LHS is uninstantiated matrix (ie. dimensions = (0, 0)) and
+          RHS is matrix that has valid dimensions (nonnegative) *)
+       else if is_mat lvaluet && is_mat rvaluet && ((mat_dim lvaluet) = (0, 0)) &&
+              (fst (mat_dim rvaluet) > 0) && (snd (mat_dim rvaluet) > 0)
+            then rvaluet
+       (* Normal assignment *)
        else if lvaluet = rvaluet then lvaluet
        else raise (Failure err)
     in
@@ -224,13 +230,15 @@ let check (globals, functions) =
           let lt = type_of_identifier var blk.symtbl
           and _ = check_inited_or_fail ex blk.symtbl
           and (rt, e') = expr blk e in
-          (* If assigning matrix literal, update the symbtbl entry for the matrix dimensions *)
-          if (is_mat_lit e && is_mat lt) then
+
+          (* If assigning matrix literal or assigning to another matrix,
+             update the symbtbl entry for the matrix dimensions *)
+          if (is_mat_lit e && is_mat lt) || (is_mat lt && is_mat rt) then
             let rtt = mat_typ rt in
             let (prev_r, prev_c) = mat_dim lt in
             let (r,c) = mat_dim rt in
             (* Check if matrix dimensions have been initialized *)
-            let _ = if ((prev_r != -1 && prev_c != -1) && (prev_r != r || prev_c != c))
+            let _ = if ((prev_r != 0 && prev_c != 0) && (prev_r != r || prev_c != c))
                     then raise (Failure ("illegal matrix assignment, expecting matrix dimensions (" ^
                     (string_of_int prev_r) ^ "," ^ (string_of_int prev_c) ^ ")"))
                     in
@@ -469,7 +477,9 @@ let check (globals, functions) =
           in let _ = if t = Auto && e = Noexpr
                      then raise (Failure auto_err)
           in let t' = if t = Auto then et
+                      else if is_mat t && is_mat et then (check_assign t et type_err)
                       else t
+          (* in let _ = print_string ("\nvdecl from " ^ (string_of_typ t) ^ " to " ^ (string_of_typ t')) *)
           in let entry = {
             ty = t';
             ety = None;
