@@ -38,5 +38,10 @@ int main() {
 	if (w == w) print("w == w");
 	if (w != z) print("w != z");
 
+        x = 2.0;
+        print(x ** 2); // 4.0
+        print(x ** 3.0); // 8.0
+        print(x ** 4.0); // 16.0
+
 	return 0;
 }

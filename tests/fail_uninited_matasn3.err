@@ -1,0 +1,1 @@
+Fatal error: exception Failure("use of definitely uninitialized variable k is disallowed in x[i][j] = k")

@@ -1,0 +1,11 @@
+int main() {
+    bool matrix [2][2] x = [ [true, false]; [false, true] ] and [ [true, true]; [true, false] ];
+
+    if (not x[0][0]) return 1;
+    if (x[0][1]) return 1;
+    if (x[1][0]) return 1;
+    if (x[1][1]) return 1;
+
+    print("success");
+    return 0;
+}

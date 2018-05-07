@@ -28,5 +28,11 @@ int main() {
 	if (j >= i) print("j >= i"); // true
 	if (j >= j) print("j >= j"); // true
 
+        i = 8;
+        j = 2;
+        print(i / j); // 4
+        print(i / (j * 2)); // 2
+        print(j ** 3); // 8
+
 	return 0;
 }

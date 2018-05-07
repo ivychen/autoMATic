@@ -1,0 +1,8 @@
+void x(int matrix [3][3] x) {
+    print(x[0][0]);
+}
+
+int main() {
+    x(7);
+    return 0;
+}

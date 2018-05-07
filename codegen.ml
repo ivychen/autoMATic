@@ -198,7 +198,7 @@ let build_function_body fdecl =
             | A.Sub     -> L.build_fsub e1' e2' "tmp" builder
             | A.Mult    -> L.build_fmul e1' e2' "tmp" builder
             | A.Exp     -> let (ty, _) = e2 in
-                           let safe_cast = if ty = A.Int then L.const_sitofp e2' float_t else e2'
+                           let safe_cast = if ty = A.Int then L.build_sitofp e2' float_t "safe_cast" builder else e2'
                            in L.build_call pow_func [| e1'; safe_cast |] "exp" builder
             | A.Div     -> L.build_fdiv e1' e2' "tmp" builder
             | A.Equal   -> L.build_fcmp L.Fcmp.Oeq e1' e2' "tmp" builder
@@ -215,10 +215,10 @@ let build_function_body fdecl =
             | A.Sub     -> L.build_sub e1' e2' "tmp" builder
             | A.Mult    -> L.build_mul e1' e2' "tmp" builder
             | A.Exp     -> let (ty, _) = e2 in
-                           let cast = L.const_sitofp e1' float_t
-                           and safe_cast = if ty = A.Int then L.const_sitofp e2' float_t else e2' in
+                           let cast = L.build_sitofp e1' float_t "cast" builder
+                           and safe_cast = if ty = A.Float then e2' else L.build_sitofp e2' float_t "safe_cast" builder in
                            let result = L.build_call pow_func [| cast; safe_cast |] "exp" builder in
-                           let return = if ty = A.Int then L.const_fptosi result i32_t else result
+                           let return = if ty = A.Int then L.build_fptosi result i32_t "result" builder else result
                            in return
             | A.Div     -> L.build_sdiv e1' e2' "tmp" builder
             | A.And     -> L.build_and  e1' e2' "tmp" builder
@@ -239,7 +239,7 @@ let build_function_body fdecl =
                             let copy2 = L.build_alloca (array_t (array_t i1_t cols) mid2) "copy" builder in 
                             let _ = L.build_store e2' copy2 builder 
                             and result = L.build_alloca (array_t (array_t i1_t cols) rows) "result" builder in (match op with 
-                    | A.Add      -> for i = 0 to rows - 1 do
+                    (*| A.Add      -> for i = 0 to rows - 1 do
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do
                                             let col = L.const_int i32_t j in
@@ -264,7 +264,7 @@ let build_function_body fdecl =
                                             and reg = L.build_gep result [| zero; row; col |] "gep" builder
                                             in ignore (L.build_store diff reg builder)
                                         done;
-                                    done; L.build_load result "diff" builder
+                                    done; L.build_load result "diff" builder*)
                     | A.And      -> for i = 0 to rows - 1 do
                                         let row = L.const_int i32_t i in
                                         for j = 0 to cols - 1 do

@@ -1,0 +1,4 @@
+int main() {
+    print(cols(7));
+    return 0;
+}

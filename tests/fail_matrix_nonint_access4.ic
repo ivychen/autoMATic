@@ -1,0 +1,6 @@
+int main() {
+    int matrix [2][2] x = [ [4,3]; [2,1] ];
+    x[0][0.0] = 7;
+    print(x[0][0]);
+    return 0;
+}

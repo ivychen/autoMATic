@@ -1,0 +1,21 @@
+int main() {
+    bool matrix [3][3] x = [[ true, false, true ]; [ true, false, false ]; [ false, false, true ]];
+    bool matrix [3][3] y = x';
+    int i;
+    int j;
+
+    for (i = 0; i < rows(x); i++) {
+        for (j = 0; j < rows(x); j++) {
+            if (x[i][j] != y[j][i]) {
+                print("failure");
+                print(i);
+                print(j);
+
+                return 1;
+            }
+        }
+    }
+
+    print("success");
+    return 0;
+}

@@ -1,0 +1,11 @@
+int main() {
+    int matrix [2][2] x = [[5,6];[7,8]];
+    int i = 0;
+    int j;
+    int k = 0;
+
+    x[i][j] = k;
+    print(x[i][j]);
+
+    return 0;
+}
