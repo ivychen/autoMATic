@@ -20,10 +20,11 @@ let () =
   Arg.parse speclist (fun filename -> channel := open_in filename) usage_msg;
 
   let preproc = Preprocess.from_channel !channel in
-  let lexbuf = Lexing.from_string preproc in
+  let preproc_src = snd preproc in
+  let lexbuf = Lexing.from_string preproc_src in
   let ast = Parser.program Scanner.token lexbuf in
   match !action with
-    Preprocess -> print_string preproc
+    Preprocess -> print_string preproc_src
   | Ast -> print_string (Ast.string_of_program ast)
   | _ -> let sast = Semant.check ast in
     match !action with
