@@ -8,7 +8,7 @@ let merge_tbl tbl1 tbl2 =
           None, None -> assert false
         | Some t1, None -> Some t1
         | None, Some t2 -> Some t2
-        | Some t1, Some t2 -> Some t1) in
+        | Some t1, Some _ -> Some t1) in
     StringMap.merge opt tbl1 tbl2
 
 let rec from_file file =
@@ -17,14 +17,14 @@ let rec from_file file =
 and from_channel ic =
     let buf = Buffer.create 1024 in
     let ps_key = "#ps" in (* very jank *)
-    let eval expr tbl = 
-        if not (StringMap.mem ps_key tbl) 
+    let eval expr tbl =
+        if not (StringMap.mem ps_key tbl)
         then match expr with
           End -> StringMap.add ps_key "" tbl
         | _ -> tbl
         else match expr with
           Pass(s) -> Buffer.add_string buf s; tbl
-        | Inc(file) -> 
+        | Inc(file) ->
             let included = from_file file in
             let incl_tbl = fst included and incl_src = snd included in
             Buffer.add_string buf incl_src;
@@ -35,7 +35,7 @@ and from_channel ic =
             then StringMap.add name1 (StringMap.find name2 tbl) tbl
             else raise (Failure "preprocessor: undefined variable")
         | Undef(name) -> StringMap.remove name tbl
-        | Var(name) -> if StringMap.mem name tbl 
+        | Var(name) -> if StringMap.mem name tbl
             then Buffer.add_string buf (StringMap.find name tbl)
             else Buffer.add_string buf name; tbl
         | Ifdef(name) -> if StringMap.mem name tbl

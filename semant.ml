@@ -227,7 +227,13 @@ let check (globals, functions) =
           (* If assigning matrix literal, update the symbtbl entry for the matrix dimensions *)
           if (is_mat_lit e && is_mat lt) then
             let rtt = mat_typ rt in
+            let (prev_r, prev_c) = mat_dim lt in
             let (r,c) = mat_dim rt in
+            (* Check if matrix dimensions have been initialized *)
+            let _ = if ((prev_r != -1 && prev_c != -1) && (prev_r != r || prev_c != c))
+                    then raise (Failure ("illegal matrix assignment, expecting matrix dimensions (" ^
+                    (string_of_int prev_r) ^ "," ^ (string_of_int prev_c) ^ ")"))
+                    in
             let entry' = {
               ty = Matrix(rtt, r, c);
               ety = None;
@@ -468,7 +474,7 @@ let check (globals, functions) =
             ty = t';
             ety = None;
             const = false;
-            inited = match e' with SNoexpr -> 
+            inited = match e' with SNoexpr ->
                                       (match t' with
                                          (* Treat empty matrices as initialized *)
                                          Matrix(_, r, c) -> (r = 0 || c = 0)
