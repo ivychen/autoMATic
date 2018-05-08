@@ -2,6 +2,11 @@ int matrix test(int matrix a) {
     int i, j;
     int matrix m;
 
+    i = rows(a);
+    j = cols(a);
+    m = imat(i, j);
+    m[i - 1][j - 1] = 0;
+
     for (i = 0; i < rows(a); i++) {
         for (j = 0; j < cols(a); j++) {
             m[i][j] = a[i][j] + 5;

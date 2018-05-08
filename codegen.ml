@@ -239,6 +239,19 @@ let build_function_body fdecl =
       L.const_array (array_t lltype (List.length (List.hd init_mat))) array_of_arrays
     in
 
+    let build_mat_empty (r: L.llvalue) (c: L.llvalue) mat_type lltype expr builder =
+      let ll_elems = L.build_mul r c "mat_size" builder in
+      let ll_mat = L.build_array_alloca (pointer_t (pointer_t lltype)) ll_elems "lit_mat" builder in
+      let m = L.build_alloca mat_type "m" builder in
+      let struct_mat = L.build_struct_gep m 0 "mat_struct" builder in
+      let struct_mat_cast = L.build_bitcast struct_mat (pointer_t (pointer_t lltype)) "m_mat_cast" builder in
+        ignore(L.build_store ll_mat struct_mat_cast builder);
+      let m_r = L.build_struct_gep m 1 "m_r" builder in
+        ignore(L.build_store r m_r builder);
+      let m_c = L.build_struct_gep m 2 "m_c" builder in
+        ignore(L.build_store c m_c builder); m
+    in
+
     let build_mat_lit mat_lit r c mat_type lltype expr builder =
       let arr_mat = build_arr_from_list (mat_lit) (lltype) (expr) (builder) in
       let ll_mat = L.build_alloca (array_t (array_t lltype c) r) "lit_mat" builder in
@@ -279,6 +292,25 @@ let build_function_body fdecl =
       let new_cast = L.build_bitcast (L.build_struct_gep new_mat 0 "new_mat" builder)  (pointer_t (pointer_t (array_t (array_t lltype c) r))) "new_mat_cast" builder in
       let new_data = L.build_load (new_cast) "new_data" builder in
       ignore (L.build_store new_data old_cast builder)
+    in
+
+    (* Taken from the OCaml source because we don't have a recent enough
+     * version to use List.init *)
+    let rec init_tailrec_aux acc i n f =
+      if i >= n then acc
+      else init_tailrec_aux (f i :: acc) (i+1) n f
+    in
+
+    let rec init_aux i n f =
+      if i >= n then []
+      else
+        let r = f i in
+        r :: init_aux (i+1) n f
+    in
+
+    let list_init len f =
+      if len > 10000 then List.rev (init_tailrec_aux [] 0 len f)
+      else init_aux 0 len f
     in
 
     (* Extract typ from a (typ * sexpr) tuple *)
@@ -871,6 +903,18 @@ let build_function_body fdecl =
         let e' = expr builder e in
         let m_col = L.build_load (L.build_struct_gep e' 2 "m_col" builder) "" builder in
         m_col
+    | SCall ("imat", l) ->
+        let r' = expr builder (List.nth l 0)
+        and c' = expr builder (List.nth l 1)
+        in build_mat_empty r' c' matrix_i i32_t expr builder
+    | SCall ("fmat", l) ->
+        let r' = expr builder (List.nth l 0)
+        and c' = expr builder (List.nth l 1)
+        in build_mat_empty r' c' matrix_f float_t expr builder
+    | SCall ("bmat", l) ->
+        let r' = expr builder (List.nth l 0)
+        and c' = expr builder (List.nth l 1)
+        in build_mat_empty r' c' matrix_b i1_t expr builder
     | SMatLit(mat, r, c) ->
       let (_, sx) = List.hd (List.hd mat) in (match sx with
         | SBoolLit _  -> build_mat_lit mat r c matrix_b i1_t expr builder
