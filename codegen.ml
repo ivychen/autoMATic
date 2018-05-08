@@ -45,7 +45,7 @@ let translate (globals, functions) =
 (* === Helpers for autoMATic/LLVM types === *)
 (* Convert autoMATic types to LLVM types *)
 let ltype_of_typ = function
-    A.Int    -> i32_t
+    | A.Int    -> i32_t
     | A.Bool   -> i1_t
     | A.Float  -> float_t
     | A.Void   -> void_t
@@ -196,7 +196,20 @@ let build_function_body fdecl =
         | A.Float -> (match op with
             | A.Add     -> L.build_fadd e1' e2' "tmp" builder
             | A.Sub     -> L.build_fsub e1' e2' "tmp" builder
-            | A.Mult    -> L.build_fmul e1' e2' "tmp" builder
+            | A.Mult    -> let (ty, _) = e2 in if ty = A.Float then L.build_fmul e1' e2' "tmp" builder
+                           else let copy = L.build_alloca (ltype_of_typ ty) "copy" builder in 
+                                let _ = L.build_store e2' copy builder in
+                                let result = L.build_alloca (ltype_of_typ ty) "result" builder in (match ty with
+                                | A.Matrix(A.Float, rows, cols) -> 
+                                        for i = 0 to rows - 1 do
+                                            for j = 0 to cols - 1 do
+                                                let reg = L.build_gep result 
+                                                    [| zero; L.const_int i32_t i; L.const_int i32_t j |] "gep" builder in 
+                                                let prod = L.build_fmul (L.build_load reg "load" builder) e1' "prod" builder 
+                                                in ignore (L.build_store prod reg builder)
+                                            done;
+                                        done; L.build_load result "prod" builder
+                                | _ -> raise (Invalid_argument "invalid scalar multiplication"))
             | A.Exp     -> let (ty, _) = e2 in
                            let safe_cast = if ty = A.Int then L.build_sitofp e2' float_t "safe_cast" builder else e2'
                            in L.build_call pow_func [| e1'; safe_cast |] "exp" builder
@@ -213,7 +226,20 @@ let build_function_body fdecl =
         | A.Int -> (match op with
             | A.Add     -> L.build_add e1' e2' "tmp" builder
             | A.Sub     -> L.build_sub e1' e2' "tmp" builder
-            | A.Mult    -> L.build_mul e1' e2' "tmp" builder
+            | A.Mult    -> let (ty, _) = e2 in if ty = A.Float then L.build_mul e1' e2' "tmp" builder
+                           else let copy = L.build_alloca (ltype_of_typ ty) "copy" builder in 
+                                let _ = L.build_store e2' copy builder in
+                                let result = L.build_alloca (ltype_of_typ ty) "result" builder in (match ty with
+                                | A.Matrix(A.Int, rows, cols) -> 
+                                        for i = 0 to rows - 1 do
+                                            for j = 0 to cols - 1 do
+                                                let reg = L.build_gep result 
+                                                    [| zero; L.const_int i32_t i; L.const_int i32_t j |] "gep" builder in 
+                                                let prod = L.build_mul (L.build_load reg "load" builder) e1' "prod" builder 
+                                                in ignore (L.build_store prod reg builder)
+                                            done;
+                                        done; L.build_load result "prod" builder
+                                | _ -> raise (Invalid_argument "invalid scalar multiplication"))
             | A.Exp     -> let (ty, _) = e2 in
                            let cast = L.build_sitofp e1' float_t "cast" builder
                            and safe_cast = if ty = A.Float then e2' else L.build_sitofp e2' float_t "safe_cast" builder in
@@ -442,7 +468,7 @@ let build_function_body fdecl =
                                     done; L.build_load result "elemdiv" builder
                     | _ -> raise (Invalid_argument "invalid matrix binary operator"))
                 | _ -> raise (Failure "unsupported matrix type"))
-            | (A.Int, _) -> (match ty with
+            | (A.Int, _) when op = A.Exp -> (match ty with
                 | A.Int   -> let copy = L.build_alloca (array_t (array_t i32_t rows) rows) "copy" builder in 
                              let _ = L.build_store e1' copy builder in
                              let tmp = L.build_alloca (array_t (array_t i32_t rows) rows) "tmp" builder in 
@@ -478,7 +504,7 @@ let build_function_body fdecl =
                                  done; 
                                  let _ = L.build_store (L.build_load result "load" builder) tmp builder
                                  in exp := L.build_sub !exp one "diff" builder
-                             done; L.build_load result "prod" builder
+                             done; L.build_load result "exp" builder
                 | A.Float -> let copy = L.build_alloca (array_t (array_t float_t rows) rows) "copy" builder in 
                              let _ = L.build_store e1' copy builder in
                              let tmp = L.build_alloca (array_t (array_t float_t rows) rows) "tmp" builder in 
@@ -514,8 +540,24 @@ let build_function_body fdecl =
                                  done; 
                                  let _ = L.build_store (L.build_load result "load" builder) tmp builder
                                  in exp := L.build_sub !exp one "diff" builder
-                             done; L.build_load result "prod" builder
+                             done; L.build_load result "exp" builder
                 | _ -> raise (Failure "unsupported matrix type"))
+            | (ty, _) when op = A.Mult || op = A.Div -> 
+                let result = L.build_alloca (ltype_of_typ t) "result" builder in
+                for i = 0 to rows - 1 do
+                    for j = 0 to mid1 - 1 do
+                        let reg = L.build_gep result [| zero; L.const_int i32_t i; L.const_int i32_t j |] "gep" builder in
+                        let v = L.build_load reg "load" builder in
+                        let func = function
+                            | (A.Int, A.Mult)   -> L.build_mul
+                            | (A.Int, A.Div)    -> L.build_sdiv
+                            | (A.Float, A.Mult) -> L.build_fmul
+                            | (A.Float, A.Div)  -> L.build_fdiv
+                            | _ -> raise (Invalid_argument "invalid (type, operator) pair") in
+                        let entry = (func (ty, op)) v e2' "prod" builder
+                        in ignore (L.build_store entry reg builder)
+                    done;
+                done; L.build_load result "result" builder    
             | _ -> raise (Invalid_argument "invalid arguments to matrix binary operator"))
         | _ -> raise (Invalid_argument "invalid argument type"))
     | SUnop(op, e) ->
