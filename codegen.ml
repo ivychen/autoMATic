@@ -107,6 +107,12 @@ let is_matrix ptr =
    )
 in
 
+let is_mat m = match m with
+  A.Matrix(_,_,_) -> true
+| _ -> false
+in
+
+
 (* Initialization helper: function used to initialize global and local variables *)
 let empty_string = L.define_global "__empty_string" (L.const_stringz context "") the_module in
 let init_var typ = (match typ with
@@ -164,10 +170,11 @@ let function_decls = Hashtbl.create 100 in
     let function_decl m fdecl =
         let name = fdecl.sfname
         (* and formal_list = (List.map (fun (t, _) -> (ltype_of_typ t)) fdecl.sformals) *)
-        and formal_types = Array.of_list (List.map (fun (t,_) -> (ltype_of_typ t)) fdecl.sformals) in
-        let ftype = L.function_type ((ltype_of_typ fdecl.styp)) formal_types
+        and formal_types = Array.of_list (List.map (fun (t,_) -> if (is_mat t) then (pointer_t (ltype_of_typ t)) else (ltype_of_typ t) ) fdecl.sformals) in
+        let ftype = if (is_mat fdecl.styp) then L.function_type (pointer_t (ltype_of_typ fdecl.styp)) formal_types
+                    else L.function_type ((ltype_of_typ fdecl.styp)) formal_types
         in
-        let _ = print_string ("\nfunction type " ^ L.string_of_lltype ftype) in
+        let _ = print_string ("\nfunction " ^ name ^ " RETURN TYPE " ^ L.string_of_lltype ftype) in
         Hashtbl.add m name (L.define_function name ftype the_module, fdecl)
     in
     let add_to_function_decls x = function_decl function_decls x in
@@ -907,7 +914,6 @@ let build_function_body fdecl =
     (* | SCall ("printflt", [e]) -> L.build_call printf_func [| float_format_str ; (expr builder e) |] "printflt" builder *)
     | SCall (f, act) ->
         let (fdef, fdecl) = lookup_func f function_decls in
-        let _ = print_string ("statements : " ^ (String.concat " " (List.map string_of_sexpr act))) in
         let actuals = List.rev (List.map (expr builder) (List.rev act)) in
         (* Flatten matrix pointers into matrix structs *)
         let flatten_actuals a = (match (is_matrix_ptr a) with
