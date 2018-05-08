@@ -2,9 +2,10 @@
 
 // ------ minors ------
 int matrix minorimat(int matrix A, int m, int n) {
-    int matrix[rows(A) - 1][cols(A) - 1] minor;
-    for (int i = 0; i < rows(minor), i++) {
-        for (int j = 0; j < cols(minor); j++) {
+    int matrix minor = zeroes(rows(A) - 1, cols(A) - 1);
+    int i, j;
+    for (i = 0; i < rows(minor), i++) {
+        for (j = 0; j < cols(minor); j++) {
             if (i < m && j < n) {
                 minor[i][j] = A[i][j];
             } else if (i < m && j >=n) {
@@ -20,9 +21,10 @@ int matrix minorimat(int matrix A, int m, int n) {
 }
 
 float matrix minorfmat(float matrix A, int m, int n) {
-    float matrix[rows(A) - 1][cols(A) - 1] minor;
-    for (int i = 0; i < rows(minor), i++) {
-        for (int j = 0; j < cols(minor); j++) {
+    float matrix minor = zeroes(rows(A) - 1, cols(A) - 1);
+    int i, j;
+    for (i = 0; i < rows(minor), i++) {
+        for (j = 0; j < cols(minor); j++) {
             if (i < m && j < n) {
                 minor[i][j] = A[i][j];
             } else if (i < m && j >=n) {
@@ -38,9 +40,10 @@ float matrix minorfmat(float matrix A, int m, int n) {
 }
 
 bool matrix minorbmat(bool matrix A, int m, int n) {
-    bool matrix[rows(A) - 1][cols(A) - 1] minor;
-    for (int i = 0; i < rows(minor), i++) {
-        for (int j = 0; j < cols(minor); j++) {
+    bool matrix minor = zeroes(rows(A) - 1, cols(A) - 1);
+    int i, j;
+    for (i = 0; i < rows(minor), i++) {
+        for (j = 0; j < cols(minor); j++) {
             if (i < m && j < n) {
                 minor[i][j] = A[i][j];
             } else if (i < m && j >=n) {
@@ -71,7 +74,8 @@ int matrix sizebmat(bool matrix A) {
 // ------ determinant ------
 float detimat(int matrix A) {
     float det = 0;
-    for (int i = 0; i < cols(A); i++) {
+    int i;
+    for (i = 0; i < cols(A); i++) {
         det = det + ((-1) ** i) * det(minorimat(A, 0, i));
     }
     return det;
@@ -79,7 +83,8 @@ float detimat(int matrix A) {
 
 float detfmat(float matrix A) {
     float det = 0;
-    for (int i = 0; i < cols(A); i++) {
+    int i;
+    for (i = 0; i < cols(A); i++) {
         det = det + ((-1) ** i) * det(minorfmat(A, 0, i));
     }
     return det;
@@ -87,7 +92,8 @@ float detfmat(float matrix A) {
 
 float detbmat(bool matrix A) {
     float det = 0;
-    for (int i = 0; i < cols(A); i++) {
+    int i;
+    for (i = 0; i < cols(A); i++) {
         det = det + ((-1) ** i) * det(minorbmat(A, 0, i));
     }
     return det;
@@ -96,9 +102,10 @@ float detbmat(bool matrix A) {
 // ------ inverse ------
 float matrix invimat(int matrix A) {
     float det = det(A);
-    float matrix[rows(A)][cols(A)] adj;
-    for (int i = 0; i < rows(A); i++) {
-        for(int j = 0; j < cols(A); j++) {
+    float matrix adj = zeroes(rows(A), cols(A));
+    int i, j;
+    for (i = 0; i < rows(A); i++) {
+        for(j = 0; j < cols(A); j++) {
             adj[i][j] = ((-1) ** (i + j)) * minorimat(A, j, i) * (1.0 / det);
         }
     }
@@ -107,7 +114,8 @@ float matrix invimat(int matrix A) {
 
 float matrix invfmat(float matrix A) {
     float det = det(A);
-    float matrix[rows(A)][cols(A)] adj;
+    float matrix adj = zeroes(rows(A), cols(A));
+    int i, j;
     for (int i = 0; i < rows(A); i++) {
         for(int j = 0; j < cols(A); j++) {
             adj[i][j] = ((-1) ** (i + j)) * minorfmat(A, j, i) * (1.0 / det);
@@ -118,7 +126,8 @@ float matrix invfmat(float matrix A) {
 
 float matrix invbmat(bool matrix A) {
     float det = det(A);
-    float matrix[rows(A)][cols(A)] adj;
+    float matrix adj = zeroes(rows(A), cols(A));
+    int i, j;
     for (int i = 0; i < rows(A); i++) {
         for(int j = 0; j < cols(A); j++) {
             adj[i][j] = ((-1) ** (i + j)) * minorbmat(A, j, i) * (1.0 / det);
