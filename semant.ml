@@ -434,7 +434,7 @@ let check (globals, functions) =
           in (Void, SCall("print", [e']))
       | Call(fname, args) as call ->
           let fd = find_func fname in
-          let _ = print_string ("\ncalling function..." ^fname ^ "...returns " ^string_of_typ fd.typ) in
+          (* let _ = print_string ("\ncalling function..." ^fname ^ "...returns " ^string_of_typ fd.typ) in *)
           let _ = check_inited_or_fail call blk.symtbl in
           let _ = (if fd.typ = Auto then (let _ = check_function fd in fd) else fd) in
           let param_length = List.length fd.formals in
@@ -450,7 +450,7 @@ let check (globals, functions) =
               " has illegal auto-declared parameter " ^ n
             (* Matrix param check *)
             in let ft' = if is_mat et && is_mat ft && (mat_typ et = mat_typ ft) then et else ft
-            in let _ = print_string ("\n" ^fname ^ " has argument of type " ^ (string_of_typ et) ^ " and return type = " ^ string_of_typ fd.typ)
+            (* in let _ = print_string ("\n" ^fname ^ " has argument of type " ^ (string_of_typ et) ^ " and return type = " ^ string_of_typ fd.typ) *)
             in let void_err = "illegal void formal " ^ n
             in let _ = if ft = Auto then raise (Failure auto_err)
             in let _ = if ft = Void then raise (Failure void_err)
@@ -482,7 +482,6 @@ let check (globals, functions) =
           in let t' = if t = Auto then et
                       else if is_mat t && is_mat et then (check_assign t et type_err)
                       else t
-          (* in let _ = print_string ("\nvdecl from " ^ (string_of_typ t) ^ " to " ^ (string_of_typ t')) *)
           in let entry = {
             ty = t';
             ety = None;

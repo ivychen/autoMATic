@@ -98,15 +98,6 @@ let is_matrix_ptr ptr =
    )
 in
 
-(* Checks if lltype is a matrix *)
-let is_matrix ptr =
-  let ltype_string = L.string_of_lltype (L.type_of ptr) in
-  (match ltype_string with
-     "%matrix_i" | "%matrix_f" | "%matrix_b" -> true
-   | _  -> false
-   )
-in
-
 let is_mat m = match m with
   A.Matrix(_,_,_) -> true
 | _ -> false
@@ -174,7 +165,7 @@ let function_decls = Hashtbl.create 100 in
         let ftype = if (is_mat fdecl.styp) then L.function_type (pointer_t (ltype_of_typ fdecl.styp)) formal_types
                     else L.function_type ((ltype_of_typ fdecl.styp)) formal_types
         in
-        let _ = print_string ("\nfunction " ^ name ^ " RETURN TYPE " ^ L.string_of_lltype ftype) in
+        (* let _ = print_string ("\nfunction " ^ name ^ " RETURN TYPE " ^ L.string_of_lltype ftype) in *)
         Hashtbl.add m name (L.define_function name ftype the_module, fdecl)
     in
     let add_to_function_decls x = function_decl function_decls x in
@@ -185,7 +176,7 @@ let function_decls = Hashtbl.create 100 in
         List.fold_left function_decl StringMap.empty functions in *)
 
 let lookup_func f function_decls = try ((Hashtbl.find function_decls f))
-                    with Not_found -> raise (Failure "function not found")
+                                   with Not_found -> raise (Failure "function not found")
 in
 
 (* Fill in the body of the given function *)
@@ -791,7 +782,13 @@ let build_function_body fdecl =
           build_mat_init prev_mat r c mat_type lltype expr builder
         in
         let e' = expr builder e in
-        let rh_ty = get_styp e in
+        let rh_ty = (match e with
+          (_, SCall(fn, _))   -> if (Hashtbl.mem function_decls fn)
+                                 then let (_, fndecl) = lookup_func fn function_decls in fndecl.styp
+                                 else get_styp e
+        | _                   -> get_styp e
+        ) in
+
         (* Get llvalue of identifier s *)
         let (ptr, mp) = lookup_map s in
         (* Check if both LHS and RHS are matrices *)
@@ -812,7 +809,7 @@ let build_function_body fdecl =
                                                   | _       -> raise (Failure "whomp"))
                         | _                   -> raise (Failure "error: invalid assignment"))
                       in
-                      let _ = print_string ("\n right matrix type " ^ A.string_of_typ rh_ty) in
+                      (* let _ = print_string ("\n right matrix type " ^ A.string_of_typ rh_ty) in *)
                       (* Assign matrix on RHS to LHS and update hashtable *)
                       let m = stack_build_mat_init ptr rows cols mat_typ lltype expr builder in
                       Hashtbl.add mp s (m, rh_ty);
@@ -932,12 +929,12 @@ let build_function_body fdecl =
         | _                 -> f
         ) in
         let dynamic_formals = List.map2 (update_matrix_actuals) act fdecl.sformals in
-        let _ = print_string ("\nfunction " ^ fdecl.sfname ^ " has BEFORE formals " ^ (String.concat "  "(List.map A.string_of_typ (List.map (fun (x,y) -> x) fdecl.sformals)))) in
+        (* let _ = print_string ("\nfunction " ^ fdecl.sfname ^ " has BEFORE formals " ^ (String.concat "  "(List.map A.string_of_typ (List.map (fun (x,y) -> x) fdecl.sformals)))) in *)
         let _ = fdecl.sformals <- dynamic_formals in
         let actuals = List.map (flatten_actuals) actuals in
-        let _ = print_string ("\nfunction " ^ fdecl.sfname ^ " has actuals " ^ (String.concat "  "(List.map A.string_of_typ (List.map (fun (x,y) -> x) act)))) in
-        let _ = print_string ("\nfunction " ^ fdecl.sfname ^ " has AFTER formals " ^ (String.concat "  "(List.map A.string_of_typ (List.map (fun (x,y) -> x) fdecl.sformals)))) in
-        let _ = print_string ("\nfunction " ^ fdecl.sfname ^ " has RETURN " ^ (A.string_of_typ fdecl.styp)) in
+        (* let _ = print_string ("\nfunction " ^ fdecl.sfname ^ " has actuals " ^ (String.concat "  "(List.map A.string_of_typ (List.map (fun (x,y) -> x) act)))) in *)
+        (* let _ = print_string ("\nfunction " ^ fdecl.sfname ^ " has AFTER formals " ^ (String.concat "  "(List.map A.string_of_typ (List.map (fun (x,y) -> x) fdecl.sformals)))) in *)
+        (* let _ = print_string ("\nfunction " ^ fdecl.sfname ^ " has RETURN " ^ (A.string_of_typ fdecl.styp)) in *)
 
         let result = (match fdecl.styp with
             | A.Void -> ""
@@ -987,7 +984,7 @@ and produce control flow, not values *)
                           A.Void -> L.build_ret_void builder
                           (* Matrix return statements *)
                         | A.Matrix(ty, r, c) -> let _ = fdecl.styp <- (A.Matrix(ty, r, c)) in
-                                                let _ = print_string ("\nnew type in function " ^fdecl.sfname ^ " with return "^ A.string_of_typ fdecl.styp) in
+                                                (* let _ = print_string ("\nnew type in function " ^fdecl.sfname ^ " with return "^ A.string_of_typ fdecl.styp) in *)
                                                 (match ty with
                                                   A.Int   -> L.build_ret ((expr builder e)) builder
                                                 | A.Float -> L.build_ret ((expr builder e)) builder
