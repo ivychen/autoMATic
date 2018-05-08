@@ -226,7 +226,7 @@ let build_function_body fdecl =
         | A.Int -> (match op with
             | A.Add     -> L.build_add e1' e2' "tmp" builder
             | A.Sub     -> L.build_sub e1' e2' "tmp" builder
-            | A.Mult    -> let (ty, _) = e2 in if ty = A.Float then L.build_mul e1' e2' "tmp" builder
+            | A.Mult    -> let (ty, _) = e2 in if ty = A.Int then L.build_mul e1' e2' "tmp" builder
                            else let copy = L.build_alloca (ltype_of_typ ty) "copy" builder in 
                                 let _ = L.build_store e2' copy builder in
                                 let result = L.build_alloca (ltype_of_typ ty) "result" builder in (match ty with
