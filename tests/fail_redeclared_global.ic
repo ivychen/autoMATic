@@ -2,5 +2,5 @@ int x;
 
 int main() {
     int x = 5;
-    print(x); // ERR: redeclaration of global "x"
+    println(x); // ERR: redeclaration of global "x"
 }

@@ -1,8 +1,8 @@
 int main() {
     int matrix [2][2] x;
     x = [[1,2];[3,4]];
-    print(rows(x)); // 2
+    println(rows(x)); // 2
     x = [[4,5];[6,7]];
-    print(rows(x)); // 2
+    println(rows(x)); // 2
     return 0;
 }

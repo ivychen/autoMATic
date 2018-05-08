@@ -3,6 +3,6 @@
 #define NUM 128
 
 int main() {
-	print(NUM);
+	println(NUM);
 	return 0;
 }

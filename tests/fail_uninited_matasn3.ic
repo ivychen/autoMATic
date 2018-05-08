@@ -5,7 +5,7 @@ int main() {
     int k;
 
     x[i][j] = k;
-    print(x[i][j]);
+    println(x[i][j]);
 
     return 0;
 }

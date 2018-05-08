@@ -1,4 +1,4 @@
 int main() {
-    print(4);
+    println(4);
     return 0;
 }

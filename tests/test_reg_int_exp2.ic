@@ -5,6 +5,6 @@ int main() {
     x = 2;
     y = 3;
 
-    print(x ** y); // 8
+    println(x ** y); // 8
     return 0;
 }

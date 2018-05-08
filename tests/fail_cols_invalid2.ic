@@ -1,4 +1,4 @@
 int main() {
-    print(cols([[1,2];[3,4]], 5));
+    println(cols([[1,2];[3,4]], 5));
     return 0;
 }

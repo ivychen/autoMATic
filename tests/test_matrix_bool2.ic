@@ -6,6 +6,6 @@ int main() {
     if (not x[1][0]) return 1;
     if (not x[1][1]) return 1;
 
-    print("success");
+    println("success");
     return 0;
 }

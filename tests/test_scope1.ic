@@ -3,10 +3,10 @@ int main() {
     int y = 3;
     {
         string z = "hello!";
-        print(z);
+        println(z);
         x = 5;
     }
 
-    print(x);
-    print(y);
+    println(x);
+    println(y);
 }

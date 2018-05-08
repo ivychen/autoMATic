@@ -1,6 +1,6 @@
 int main() {
     int x, y, z;
     x = 42;
-    print(x);
+    println(x);
     return 0;
 }

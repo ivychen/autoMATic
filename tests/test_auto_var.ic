@@ -2,9 +2,9 @@ int main() {
     auto x = 5;
     y := "a string";
 
-    print(5);
-    print(y);
+    println(5);
+    println(y);
 
     y = "another string";
-    print(y);
+    println(y);
 }

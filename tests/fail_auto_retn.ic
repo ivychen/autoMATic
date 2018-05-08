@@ -1,5 +1,5 @@
 auto x() {
-    print("x is a void-returning function");
+    println("x is a void-returning function");
 }
 
 int main() {

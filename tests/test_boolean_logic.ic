@@ -2,27 +2,27 @@ int main() {
 	int x = 0;
 	int y = 2;
 
-	if (x == 0) print("x == 0");
+	if (x == 0) println("x == 0");
 
 	bool pred = (x == 0);
-	if (pred) print("x == 0");
-	if (not not pred) print("x == 0");
+	if (pred) println("x == 0");
+	if (not not pred) println("x == 0");
 
 	pred = not pred;
-	if (pred == false) print("pred is false");
+	if (pred == false) println("pred is false");
 
 	pred = true;
-	if (pred == true) print("pred is true");
+	if (pred == true) println("pred is true");
 
 	bool pred2 = false;
-	if (pred and pred2) print("pred and pred2 are true"); // false
+	if (pred and pred2) println("pred and pred2 are true"); // false
 	pred2 = true;
-	if (pred and pred2) print("pred and pred2 are true"); // true
+	if (pred and pred2) println("pred and pred2 are true"); // true
 
-	if (not pred and not pred2) print("!pred and !pred2 are true"); // false
-	if (not not pred and not not pred2) print("!!pred and !!pred2 are true"); // true
+	if (not pred and not pred2) println("!pred and !pred2 are true"); // false
+	if (not not pred and not not pred2) println("!!pred and !!pred2 are true"); // true
 
-        if (pred != not pred) print("pred != !pred");
+        if (pred != not pred) println("pred != !pred");
 
 	return 0;
 }

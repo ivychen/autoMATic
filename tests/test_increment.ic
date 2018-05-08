@@ -5,21 +5,21 @@ int main() {
 	i = 0;
 	j = i;
 
-	print(i); // 0
-  print(j); // 0
+	println(i); // 0
+  println(j); // 0
 
   i++;
   j++;
 
   j = j + 1;
-  if (i++ == j) print("i++ == j"); // true
+  if (i++ == j) println("i++ == j"); // true
   j = j + 1;
-  if (i++ == j) print("i++ == j"); // true
+  if (i++ == j) println("i++ == j"); // true
   j = j + 1;
-  if (i++ == j) print("i++ == j"); // true
+  if (i++ == j) println("i++ == j"); // true
 
-  print(i); // 4
-  print(j); // 4
+  println(i); // 4
+  println(j); // 4
 
 	return 0;
 }

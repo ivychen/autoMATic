@@ -3,6 +3,6 @@ int main() {
     int i = 0;
     int j;
 
-    print(x[i][j]);
+    println(x[i][j]);
     return 0;
 }

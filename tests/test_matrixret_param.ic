@@ -7,5 +7,5 @@ int g(int matrix[3][3] x) {
 }
 
 int main() {
-	print(g(f())); // 5
+	println(g(f())); // 5
 }

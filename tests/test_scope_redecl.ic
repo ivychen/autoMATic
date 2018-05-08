@@ -3,11 +3,11 @@ int main() {
     // scopes. Should not conflict.
     {
         int x = 4;
-        print(x);
+        println(x);
     }
     {
         int x = 7;
-        print(x);
+        println(x);
     }
 
     return 0;

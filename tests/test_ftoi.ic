@@ -2,7 +2,7 @@ int main() {
 	// LLVM's fptosi rounds down
 	float f = 3.4;
 	int i = ftoi(f);
-	print(i);		 // 3
-	print(ftoi(724.552139)); // 724
+	println(i);		 // 3
+	println(ftoi(724.552139)); // 724
 	return 0;
 }

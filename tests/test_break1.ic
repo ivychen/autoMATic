@@ -7,6 +7,6 @@ int main() {
 		i = i + 1;
 	}
 
-	print(i);
+	println(i);
 	return 0;
 }

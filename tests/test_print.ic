@@ -5,12 +5,12 @@ int main() {
     int r;
     int matrix[3][2] M;
     M = [[1,2];[3,2];[3,3]];
-    print(x);
-    print(f);
-    print(s);
-    print(rows(M)); // 3
-    print(cols(M)); // 2
+    println(x);
+    println(f);
+    println(s);
+    println(rows(M)); // 3
+    println(cols(M)); // 2
     r = rows(M);
-    print(r); // 3
+    println(r); // 3
     return 0;
 }

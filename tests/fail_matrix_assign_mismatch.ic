@@ -1,6 +1,6 @@
 int main() {
     int matrix [2][2] x = [ [4,3]; [2,1] ];
     x[0][0] = 7.0; // float != int
-    print(x[0][0]);
+    println(x[0][0]);
     return 0;
 }

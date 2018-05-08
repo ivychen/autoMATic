@@ -5,7 +5,7 @@ int main() {
 			break;
 
 		if (i % 2 == 0)
-			print(i);
+			println(i);
 	}
 
 	return 0;

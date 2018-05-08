@@ -4,8 +4,8 @@
 #define MORE AYYLMAO
 
 int main() {
-	print(number());
-	print(AYYLMAO);
-	print(MORE);
+	println(number());
+	println(AYYLMAO);
+	println(MORE);
 	return 0;
 }

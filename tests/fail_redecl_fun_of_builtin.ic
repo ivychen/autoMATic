@@ -1,8 +1,8 @@
-void print(int x) {
-	print("Uh oh!");
+void println(int x) {
+	println("Uh oh!");
 }
 
 int main() {
-	print(7);
+	println(7);
 	return 0;
 }

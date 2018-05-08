@@ -1,7 +1,7 @@
 int main() {
     auto x = 5, y = "test", z = 4.0;
-    print(x);
-    print(y);
-    print(z);
+    println(x);
+    println(y);
+    println(z);
     return 0;
 }

@@ -10,13 +10,13 @@ int main() {
 			}
 		}
 
-		print(k);
+		println(k);
 		if (i == 4) break;
 	}
 
 	for (i = 10; i < 15; i = i + 1) {
 		if (i == 12) continue;
-		print(i);
+		println(i);
 		if (i == 14) break;
 	}
 
