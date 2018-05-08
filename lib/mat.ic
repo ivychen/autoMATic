@@ -1,5 +1,8 @@
 /* Standard library functions */
 
+// TODO: rewrite when matrix syntax is stable
+
+/*
 matrix minor(matrix A, int m, int n) {
     matrix[rows(A) - 1][cols(A) - 1] minor;
     for (int i = 0; i < rows(minor), i++) {
@@ -49,4 +52,4 @@ float tr(matrix A) {
         }
     }
     return transpose;
-}
+}*/

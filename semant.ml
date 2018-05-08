@@ -58,12 +58,10 @@ let check (globals, functions) =
       typ = returntype; fwasauto = false; fname = name;
       formals = List.mapi (fun idx argtype -> (argtype, "x" ^ string_of_int idx)) argtypes;
       body = [] } map
-    in List.fold_left add_bind StringMap.empty [
-                                                 (* ("printstr", [String], Void); *)
-                                                 (* ("print", [Int], Void); *)
+    in List.fold_left add_bind StringMap.empty [ ("ftoi", [Float], Int);
+                                                 ("itof", [Int], Float)
                                                  (* ("size", [MatrixRet(Int)], Matrix(Int,1,2)); *)
-                                                 (* ("det", [Matrix], DataType(Float)); *)
-                                                 (* ("printflt", [Float], Void); *)
+                                                 (* ("det", [Matrix], DataType(Float)); *) 
                                                  (* ("size", [Matrix], Matrix);
                                                  ("minor", [Matrix; Int; Int], Matrix);
                                                  ("inv", [Matrix], Matrix);
