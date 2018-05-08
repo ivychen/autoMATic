@@ -213,8 +213,9 @@ let check (globals, functions) =
             let res = expr_inited e1 && expr_inited e2 && expr_inited e3 in
             let entry = entry_of_identifier s tbl in
             let _ = entry.inited <- true in res
-        | Call(_, args) ->
-            List.iter (fun e -> ignore (expr_inited e)) args; true
+        | Call(fname, args) ->
+            if fname = "rows" || fname = "cols" then ()
+            else List.iter (fun e -> ignore (expr_inited e)) args; true
         in (expr_inited e)
     in
 
@@ -241,6 +242,8 @@ let check (globals, functions) =
             let _ = if ((prev_r != 0 && prev_c != 0) && (prev_r != r || prev_c != c))
                     then raise (Failure ("illegal matrix assignment, expecting matrix dimensions (" ^
                     (string_of_int prev_r) ^ "," ^ (string_of_int prev_c) ^ ")"))
+                    else if (mat_typ lt != rtt) then raise (Failure ("illegal matrix assignment, expecting type " ^
+                    (string_of_typ lt) ^ " seen type " ^ (string_of_typ rtt)))
                     in
             let entry' = {
               ty = Matrix(rtt, r, c);
@@ -402,23 +405,23 @@ let check (globals, functions) =
                                   else raise(Failure("Invalid matrix assignment"))
             | _       ->  raise(Failure("Cannot assign incompatible element of " ^ string_of_typ ty ^ " in " ^ string_of_expr ex)))
       | Call("rows", args) as call ->
-          let _ = check_inited_or_fail call blk.symtbl in
+          (* let _ = check_inited_or_fail call blk.symtbl in *)
           let _ = (if List.length args != 1 then raise (Failure "error: incorrect number of arguments in rows()")) in
           let e = List.hd args in
           let e' = expr blk e in
           let se_typ = get_styp e' in
           if is_mat (se_typ) then (match se_typ with
-            Matrix(_, r, _) -> (Int, SCall("rows", [e']))
+            Matrix(_, _, _) -> (Int, SCall("rows", [e']))
           | _               -> raise (Failure "error: invalid use of rows on non-matrix argument"))
           else raise (Failure "error: called rows on non-matrix argument")
       | Call("cols", args) as call->
-          let _ = check_inited_or_fail call blk.symtbl in
+          (* let _ = check_inited_or_fail call blk.symtbl in *)
           let _ = (if List.length args != 1 then raise (Failure "error: incorrect number of arguments in cols()")) in
           let e = List.hd args in
           let e' = expr blk e in
           let se_typ = get_styp e' in
           if is_mat (se_typ) then (match se_typ with
-            Matrix(_, _, c) -> (Int, SCall("cols", [e']))
+            Matrix(_, _, _) -> (Int, SCall("cols", [e']))
           | _               -> raise (Failure "error: invalid use of cols on non-matrix argument"))
           else raise (Failure "error: called cols on non-matrix argument")
       | Call("print", args) as call ->
@@ -488,8 +491,8 @@ let check (globals, functions) =
             const = false;
             inited = match e' with SNoexpr ->
                                       (match t' with
-                                         (* Treat empty matrices as initialized *)
-                                         Matrix(_, r, c) -> (r = 0 || c = 0)
+                                         (* Treat empty matrices as UNinitialized *)
+                                         Matrix(_, r, c) -> (r != 0 || c != 0)
                                        | _ -> false)
                                  | _ -> true;
           }
