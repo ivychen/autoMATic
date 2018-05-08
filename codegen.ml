@@ -442,7 +442,7 @@ let build_function_body fdecl =
                                     done; L.build_load result "elemdiv" builder
                     | _ -> raise (Invalid_argument "invalid matrix binary operator"))
                 | _ -> raise (Failure "unsupported matrix type"))
-            | (A.Int, SIntLit n) -> (match ty with
+            | (A.Int, _) -> (match ty with
                 | A.Int   -> let copy = L.build_alloca (array_t (array_t i32_t rows) rows) "copy" builder in 
                              let _ = L.build_store e1' copy builder in
                              let tmp = L.build_alloca (array_t (array_t i32_t rows) rows) "tmp" builder in 
@@ -457,7 +457,8 @@ let build_function_body fdecl =
                                  done;
                              done;
             
-                             for l = 0 to n - 1 do
+                             let exp = ref e2' in
+                             while not (L.is_null !exp) do
                                  for i = 0 to rows - 1 do
                                      let row = L.const_int i32_t i in 
                                      for j = 0 to rows - 1 do
@@ -474,7 +475,9 @@ let build_function_body fdecl =
                                          let reg = L.build_gep result [| zero; row; col |] "gep" builder 
                                          in ignore (L.build_store !accum reg builder)
                                      done;
-                                 done; ignore (L.build_store (L.build_load result "load" builder) tmp builder)
+                                 done; 
+                                 let _ = L.build_store (L.build_load result "load" builder) tmp builder
+                                 in exp := L.build_sub !exp one "diff" builder
                              done; L.build_load result "prod" builder
                 | A.Float -> let copy = L.build_alloca (array_t (array_t float_t rows) rows) "copy" builder in 
                              let _ = L.build_store e1' copy builder in
@@ -490,7 +493,8 @@ let build_function_body fdecl =
                                  done;
                              done;
         
-                             for l = 0 to n - 1 do
+                             let exp = ref e2' in
+                             while not (L.is_null !exp) do
                                  for i = 0 to rows - 1 do
                                      let row = L.const_int i32_t i in 
                                      for j = 0 to rows - 1 do
@@ -507,7 +511,9 @@ let build_function_body fdecl =
                                          let reg = L.build_gep result [| zero; row; col |] "gep" builder 
                                          in ignore (L.build_store !accum reg builder)
                                      done;
-                                 done; ignore (L.build_store (L.build_load result "load" builder) tmp builder)
+                                 done; 
+                                 let _ = L.build_store (L.build_load result "load" builder) tmp builder
+                                 in exp := L.build_sub !exp one "diff" builder
                              done; L.build_load result "prod" builder
                 | _ -> raise (Failure "unsupported matrix type"))
             | _ -> raise (Invalid_argument "invalid arguments to matrix binary operator"))
