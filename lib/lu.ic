@@ -1,0 +1,34 @@
+// LU factorization
+int matrix lu(int matrix A) {
+	int n = cols(A);
+	int matrix lower = zeroes(n, n);
+	int matrix upper = zeroes(n, n);
+	int i, j, k;
+
+	// decompose matrix into upper and lower triangular matrices
+	for (i = 0; i < n; i++) {
+		// upper
+		for (k = 0; k < n; k++) {
+			int sum = 0;
+			for (j = 0; j < i; j++) {
+				sum = sum + lower[i][j] * upper[j][k];
+			}
+			upper[i][k] = M[i][k] - sum;
+		}
+
+		// lower
+		for (k = i; k < n; k++) {
+			if (i == k) {
+				lower[i][i] = 1;
+			} else {
+				int sum = 0;
+				for (j = 0; j < i; j++) {
+					sum = sum + lower[k][j] * upper[j][i];
+				}
+				lower[k][i] = (M[k][i] - sum) / upper[i][i];
+			}
+		}
+	}
+
+	return upper;
+}
