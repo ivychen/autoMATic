@@ -15,6 +15,8 @@
 04-08-2018:
 - Nelson: I tried to install KidPix and it didn't work, it was bullshit!
 
+INSERT LONG DRY SPELL OF QUOTES BC WE NEEDED TO ACTUALLY GET STUFF DONE
+
 05-08-2018:
 - PRESENTATION DAY!!
 - *10min before presenting
