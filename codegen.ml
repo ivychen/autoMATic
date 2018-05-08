@@ -170,7 +170,7 @@ let function_decls = Hashtbl.create 100 in
     let function_decl m fdecl =
         let name = fdecl.sfname
         (* and formal_list = (List.map (fun (t, _) -> (ltype_of_typ t)) fdecl.sformals) *)
-        and formal_types = Array.of_list (List.map (fun (t,_) -> if (is_mat t) then (pointer_t (ltype_of_typ t)) else (ltype_of_typ t) ) fdecl.sformals) in
+        and formal_types = Array.of_list (List.map (fun (t,_) -> (ltype_of_typ t)) fdecl.sformals) in
         let ftype = if (is_mat fdecl.styp) then L.function_type (pointer_t (ltype_of_typ fdecl.styp)) formal_types
                     else L.function_type ((ltype_of_typ fdecl.styp)) formal_types
         in
@@ -268,6 +268,7 @@ let build_function_body fdecl =
                      else if lltype = i32_t then B.List.make r (B.List.make c (A.Int, SIntLit(0)))
                      else raise (Failure "invalid matrix type")
       in
+      if (r = 0 || c = 0) then prev_mat else
       let arr_mat = build_arr_from_list (init_mat) (lltype) (expr) (builder) in
       let ll_mat = L.build_alloca (array_t (array_t lltype c) r) "init_mat" builder in
       let _ = ignore (L.build_store arr_mat ll_mat builder) in
@@ -796,7 +797,7 @@ let build_function_body fdecl =
         (* Check if both LHS and RHS are matrices *)
         (match (is_matrix_ptr ptr) with
             true   ->
-                      if (L.string_of_lltype (L.type_of e') <> "%matrix_i*" &&
+                      if  (L.string_of_lltype (L.type_of e') <> "%matrix_i*" &&
                            L.string_of_lltype (L.type_of e') <> "%matrix_f*" &&
                            L.string_of_lltype (L.type_of e') <> "%matrix_b*" )
                       then raise (Failure "error: matrix must be assigned to a matrix")
@@ -811,6 +812,7 @@ let build_function_body fdecl =
                                                   | _       -> raise (Failure "whomp"))
                         | _                   -> raise (Failure "error: invalid assignment"))
                       in
+                      let _ = print_string ("\n right matrix type " ^ A.string_of_typ rh_ty) in
                       (* Assign matrix on RHS to LHS and update hashtable *)
                       let m = stack_build_mat_init ptr rows cols mat_typ lltype expr builder in
                       Hashtbl.add mp s (m, rh_ty);
@@ -987,12 +989,12 @@ and produce control flow, not values *)
                         | A.Matrix(ty, r, c) -> let _ = fdecl.styp <- (A.Matrix(ty, r, c)) in
                                                 let _ = print_string ("\nnew type in function " ^fdecl.sfname ^ " with return "^ A.string_of_typ fdecl.styp) in
                                                 (match ty with
+                                                  A.Int   -> L.build_ret ((expr builder e)) builder
+                                                | A.Float -> L.build_ret ((expr builder e)) builder
+                                                | A.Bool  -> L.build_ret ((expr builder e)) builder
                                                   (* A.Int   -> L.build_ret (L.build_load (expr builder e) "return_mat" builder) builder
                                                 | A.Float -> L.build_ret (L.build_load (expr builder e) "return_mat" builder) builder
                                                 | A.Bool  -> L.build_ret (L.build_load (expr builder e) "return_mat" builder) builder *)
-                                                A.Int   -> L.build_ret (L.build_load (expr builder e) "return_mat" builder) builder
-                                              | A.Float -> L.build_ret (L.build_load (expr builder e) "return_mat" builder) builder
-                                              | A.Bool  -> L.build_ret (L.build_load (expr builder e) "return_mat" builder) builder
                                                 | _       -> raise (Failure "error: invalid matrix type"))
                           (* Build return statement *)
                         | _ -> L.build_ret (expr builder e) builder)
