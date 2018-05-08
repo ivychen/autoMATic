@@ -1,6 +1,6 @@
 int main() {
     int matrix [7][1] x;
     x = [ [1]; [1]; [1]; [1]; [1]; [1]; [1] ];
-    print(rows(x)); // 7 
+    println(rows(x)); // 7 
     return 0;
 }

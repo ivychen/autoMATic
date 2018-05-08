@@ -8,12 +8,12 @@ int main() {
 
 // main declarations of "x" and "y" should not conflict
 void test1(int x, string y) {
-    print(x);
-    print(y);
+    println(x);
+    println(y);
     test2(x);
 }
 
 // test2's formal "x" should not conflict with test1's
 void test2(int x) {
-    print(x);
+    println(x);
 }

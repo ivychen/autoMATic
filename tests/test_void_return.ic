@@ -1,9 +1,9 @@
-void printer() {
-	print("Hello!");
+void printlner() {
+	println("Hello!");
 	return;
 }
 
 int main() {
-	printer();
+	printlner();
 	return 0;
 }

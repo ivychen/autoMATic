@@ -9,7 +9,7 @@
 #end
 
 int main() {
-	print(AYYLMAO);
-	print(number()); // should print 100, not 42
+	println(AYYLMAO);
+	println(number()); // should println 100, not 42
 	return 0;
 }

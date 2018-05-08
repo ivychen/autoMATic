@@ -1,4 +1,4 @@
 int main() {
-    print(rows(7));
+    println(rows(7));
     return 0;
 }

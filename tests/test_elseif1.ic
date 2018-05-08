@@ -1,11 +1,11 @@
 int main() {
 	int x = 7;
 	if (x == 5) {
-		print("Hello");
+		println("Hello");
 	} else if (x == 6) {
-		print("World");
+		println("World");
 	} else {
-		print("!");
+		println("!");
 	}
 
 	return 0;

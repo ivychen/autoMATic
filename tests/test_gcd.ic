@@ -11,8 +11,8 @@ int GCD(int a, int b) {
 }
 
 int main() {
-    print(GCD(4, 8)); // 4
-    print(GCD(2, 7)); // 1
-    print(GCD(0, 0)); // 0
-    print(GCD(1048026, 924)); // 42
+    println(GCD(4, 8)); // 4
+    println(GCD(2, 7)); // 1
+    println(GCD(0, 0)); // 0
+    println(GCD(1048026, 924)); // 42
 }

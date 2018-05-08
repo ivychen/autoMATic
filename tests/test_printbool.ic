@@ -2,9 +2,9 @@ int main() {
 	bool b1 = 8 > 3;		// true
 	bool b2 = (8 * 8) < 0;  	// false
 	bool b3 = false;		// false
-	print(b1);			// 1
-	print(b1 or b2);		// 1
-	print(b3);			// 0
-	print((b1 and b2) or b3);	// 0
+	println(b1);			// 1
+	println(b1 or b2);		// 1
+	println(b3);			// 0
+	println((b1 and b2) or b3);	// 0
 	return 0;
 }

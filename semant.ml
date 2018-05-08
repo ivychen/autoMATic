@@ -77,7 +77,7 @@ let check (globals, functions) =
     in match fd with (* No duplicate functions or redefinitions of built-ins *)
          _ when StringMap.mem n built_in_decls -> make_err built_in_err
        | _ when StringMap.mem n map -> make_err dup_err
-       | _ when n = "rows" || n = "cols" || n = "print" -> make_err dup_err
+       | _ when n = "rows" || n = "cols" || n = "print" || n = "println" -> make_err dup_err
        | _ ->  StringMap.add n fd map
   in
 
@@ -415,6 +415,16 @@ let check (globals, functions) =
                                        let _ = (if fd.typ = Auto then (let _ = check_function fd in fd) else fd) in ()
           | _                       -> () )
           in (Void, SCall("print", [e']))
+      | Call("println", args) as call ->
+          let _ = check_inited_or_fail call blk.symtbl in
+          let _ = (if List.length args != 1 then raise (Failure "error: too many/few arguments in println()")) in
+          let e = List.hd args in
+          let e' = expr blk e in
+          let _ = (match e' with
+            (_, SCall(fname, _))    -> let fd = find_func fname in
+                                       let _ = (if fd.typ = Auto then (let _ = check_function fd in fd) else fd) in ()
+          | _                       -> () )
+          in (Void, SCall("println", [e']))
       | Call(fname, args) as call ->
           let fd = find_func fname in
           let _ = check_inited_or_fail call blk.symtbl in

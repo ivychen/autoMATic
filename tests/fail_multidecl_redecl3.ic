@@ -1,6 +1,6 @@
 int main() {
     float a = 4.0, y = 2.0;
     float a = 1.0;
-    print(a);
+    println(a);
     return 0;
 }

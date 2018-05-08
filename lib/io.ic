@@ -1,12 +1,21 @@
 /* additional printing functions */
 
-// print true/false instead of 1/0
-void printbool(bool b) {
-	if (b) {
-		print("true");
-	} else {
-		print("false");
+// simple, unaligned print
+void printimat(int matrix A) {
+	int r = rows(A);
+	int c = cols(A);
+
+	print("[");
+	print(r);
+	print(" x ");
+	print(c);
+	println("]");
+
+	for (int i = 0; i < r; i++) {
+		for (int j = 0; i < c; j++) {
+			print(A[i][j]);
+			print(", ");
+		}
+		println("");	
 	}
 }
-
-// TODO printmat function(s) once matrix syntax is stable

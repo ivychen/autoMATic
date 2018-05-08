@@ -1,1 +1,1 @@
-Fatal error: exception Failure("use of definitely uninitialized variable i is disallowed in print(x[i][j])")
+Fatal error: exception Failure("use of definitely uninitialized variable i is disallowed in println(x[i][j])")

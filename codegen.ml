@@ -138,9 +138,14 @@ let build_function_body fdecl =
     let (the_function, _) = StringMap.find fdecl.sfname function_decls in
     let builder = L.builder_at_end context (L.entry_block the_function) in
 
-    let int_format_str = L.build_global_stringptr "%d\n" "fmt" builder
-    and float_format_str = L.build_global_stringptr "%f\n" "fmt" builder
-    and string_format_str = L.build_global_stringptr "%s\n" "fmt" builder in
+    let int_format_str = L.build_global_stringptr "%d" "fmt" builder
+    and float_format_str = L.build_global_stringptr "%f" "fmt" builder
+    and string_format_str = L.build_global_stringptr "%s" "fmt" builder in
+
+    let int_format_str_n = L.build_global_stringptr "%d\n" "fmt" builder
+    and float_format_str_n = L.build_global_stringptr "%f\n" "fmt" builder
+    and string_format_str_n = L.build_global_stringptr "%s\n" "fmt" builder in
+
 
     (* Keep track of jump locations for breaking out of/continuing loops *)
     let continue_stack = ref []
@@ -638,6 +643,15 @@ let build_function_body fdecl =
         | A.Float  -> L.build_call printf_func [| float_format_str ; (e') |] "printflt" builder
         | A.String -> L.build_call printf_func [| string_format_str ; (e') |] "printstr" builder
         | A.Bool   -> L.build_call printf_func [| int_format_str ; (e') |] "printb" builder
+        | _        -> raise (Failure "invalid print operation")
+        )
+    | SCall ("println", [e]) ->
+        let e' = expr builder e in
+        (match (type_of_lvalue e') with
+          A.Int    -> L.build_call printf_func [| int_format_str_n ; (e') |] "print" builder
+        | A.Float  -> L.build_call printf_func [| float_format_str_n ; (e') |] "printflt" builder
+        | A.String -> L.build_call printf_func [| string_format_str_n ; (e') |] "printstr" builder
+        | A.Bool   -> L.build_call printf_func [| int_format_str_n ; (e') |] "printb" builder
         | _        -> raise (Failure "invalid print operation")
         )
     (* casting *)

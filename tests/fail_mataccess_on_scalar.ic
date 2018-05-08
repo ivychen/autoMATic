@@ -1,5 +1,5 @@
 int main() {
     int x = 0;
-    print(x[0][0]);
+    println(x[0][0]);
     return 0;
 }

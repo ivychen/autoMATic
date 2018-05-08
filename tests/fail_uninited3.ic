@@ -1,7 +1,7 @@
 int main() {
     int x;
     for (; x < 5; x++) {
-        printint(x);
+        printlnint(x);
     }
     return 0;
 }

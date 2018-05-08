@@ -4,5 +4,5 @@ int main() {
         int y = 7;
     }
 
-    print(y); // ERR: "y" is out of scope
+    println(y); // ERR: "y" is out of scope
 }

@@ -1,6 +1,6 @@
 int main() {
 	auto x;
 	x = 5;
-	printint(x);
+	printlnint(x);
 	return 0;
 }

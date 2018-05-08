@@ -1,16 +1,16 @@
-auto print_str(string s) {
-    print(s);
+auto println_str(string s) {
+    println(s);
 }
 
 auto main() {
     auto str = "test string";
-    print_str(str);
-    print(print_num(360));
+    println_str(str);
+    println(println_num(360));
 
     return 0;
 }
 
-auto print_num(int x) {
-    print(x);
+auto println_num(int x) {
+    println(x);
     return 50;
 }

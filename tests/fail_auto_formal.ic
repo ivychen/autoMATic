@@ -1,5 +1,5 @@
 void func(auto x) {
-    print(x);
+    println(x);
 }
 
 int main() {
