@@ -858,8 +858,7 @@ let build_function_body fdecl =
         | A.Bool   -> L.build_call printf_func [| int_format_str ; (e') |] "printb" builder
         | _        -> raise (Failure "invalid print operation")
         )
-<<<<<<< HEAD
-(* casting *)
+    (* casting *)
     | SCall ("ftoi", [e]) ->
         L.build_fptosi (expr builder e) i32_t "fto" builder
     | SCall ("itof", [e]) ->
