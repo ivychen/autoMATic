@@ -9,15 +9,67 @@ void printimat(int matrix A) {
 	print(r);
 	print(" x ");
 	print(c);
-	println("]");
+	println("] int");
 
 	// print the values
 	int i;
 	int j;
 	for (i = 0; i < r; i++) {
-		for (j = 0; i < c; j++) {
+		for (j = 0; j < c; j++) {
 			print(A[i][j]);
-			print(", ");
+			if (j != c - 1) {
+				print(", ");
+			}
+		}
+		println("");	
+	}
+}
+
+void printfmat(float matrix A) {
+	int r = rows(A);
+	int c = cols(A);
+
+	// print the dimensions
+	print("[");
+	print(r);
+	print(" x ");
+	print(c);
+	println("] float");
+
+	// print the values
+	int i;
+	int j;
+	for (i = 0; i < r; i++) {
+		for (j = 0; j < c; j++) {
+			print(A[i][j]);
+			if (j != c - 1) {
+				print(", ");
+			}
+		}
+		println("");	
+	}
+}
+
+void printbmat(bool matrix A) {
+	int r = rows(A);
+	int c = cols(A);
+
+	// print the dimensions
+	print("[");
+	print(r);
+	print(" x ");
+	print(c);
+	println("] bool");
+
+	// print the values
+	int i;
+	int j;
+	for (i = 0; i < r; i++) {
+		for (j = 0; j < c; j++) {
+			print(A[i][j]);
+			if (j != c - 1) {
+				print(", ");
+			}
 		}
 		println("");	
 	}
