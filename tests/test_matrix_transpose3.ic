@@ -1,6 +1,6 @@
 int main() {
-    bool matrix [3][3] x = [[ true, false, true ]; [ true, false, false ]; [ false, false, true ]];
-    bool matrix [3][3] y = x';
+    bool matrix x = [[ true, false, true ]; [ true, false, false ]; [ false, false, true ]];
+    bool matrix y = x';
     int i;
     int j;
 

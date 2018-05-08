@@ -1,5 +1,5 @@
 int main() {
-    float matrix [0][0] x;
+    float matrix x;
     print(rows(x)); // 0
     print(cols(x)); // 0
     return 0;

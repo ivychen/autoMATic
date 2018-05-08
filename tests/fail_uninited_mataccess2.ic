@@ -1,5 +1,5 @@
 int main() {
-    int matrix [2][2] x = [[1,2];[3,4]];
+    int matrix x = [[1,2];[3,4]];
     int i;
     int j = 0;
 

@@ -1,5 +1,5 @@
 int main() {
-    int matrix [2][2] x;
+    int matrix x;
     x[0][0] = 1;
     print(x[0][0]); // 1
     return 0;

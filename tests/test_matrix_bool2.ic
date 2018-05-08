@@ -1,5 +1,5 @@
 int main() {
-    bool matrix [2][2] x = [ [true, false]; [false, true] ] or [ [true, false]; [true, false] ];
+    bool matrix x = [ [true, false]; [false, true] ] or [ [true, false]; [true, false] ];
 
     if (not x[0][0]) return 1;
     if (x[0][1]) return 1;

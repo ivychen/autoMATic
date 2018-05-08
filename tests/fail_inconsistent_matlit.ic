@@ -1,4 +1,4 @@
 int main() {
-    int matrix [2][2] x = [ [1,true]; [3.0,4] ];
+    int matrix x = [ [1,true]; [3.0,4] ];
     return 0;
 }

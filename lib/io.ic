@@ -1,0 +1,12 @@
+/* additional printing functions */
+
+// print true/false instead of 1/0
+void printbool(bool b) {
+	if (b) {
+		print("true");
+	} else {
+		print("false");
+	}
+}
+
+// TODO printmat function(s) once matrix syntax is stable

@@ -3,7 +3,7 @@ int main() {
     float f = 4.2;
     string s = "whomp";
     int r;
-    int matrix[3][2] M;
+    int matrix M;
     M = [[1,2];[3,2];[3,3]];
     print(x);
     print(f);

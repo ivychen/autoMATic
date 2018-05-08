@@ -1,6 +1,6 @@
 int main() {
-    int matrix [2][2] x;
-    float matrix [2][2] y;
+    int matrix x;
+    float matrix y;
 
     x = [ [1,2]; [3,4] ];
     y = [ [4.1, 4.2]; [4.3, 4.4] ];

@@ -1,5 +1,5 @@
 int main() {
-    bool matrix [1][1] x = [[true]] .* [[true]];
+    bool matrix x = [[true]] .* [[true]];
     print(x[0][0]);
     return 0;
 }

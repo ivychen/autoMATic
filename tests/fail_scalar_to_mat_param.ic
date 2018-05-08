@@ -1,4 +1,4 @@
-void x(int matrix [3][3] x) {
+void x(int matrix x) {
     print(x[0][0]);
 }
 
