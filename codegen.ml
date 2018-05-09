@@ -416,7 +416,7 @@ let build_function_body fdecl =
 
                         for i = 0 to rows - 1 do
                             for j = 0 to inner - 1 do
-                                let reg = L.build_gep result [| zero; L.const_int i32_t i; L.const_int i32_t j |] "gep" builder in
+                                let reg = L.build_gep result [| zero; lint i; lint j |] "gep" builder in
                                 let v = L.build_load reg "load" builder in
                                 let entry = (func (ty, op)) v e2' "entry" builder
                                 in ignore (L.build_store entry reg builder)
@@ -488,29 +488,27 @@ let build_function_body fdecl =
         | A.Bool   -> L.build_call printf_func [| int_format_str_n ; (e') |] "printb" builder
         | _        -> raise (Failure "invalid print operation")
         )
+    | SCall ("rows", [e]) -> (match e with
+        | (A.Matrix(_, rows, _), _) -> lint rows
+        | _ -> raise (Invalid_argument "illegal argument to rows")
+        ) 
+    | SCall ("cols", [e]) -> (match e with
+        | (A.Matrix(_, _, cols), _) -> lint cols
+        | _ -> raise (Invalid_argument "illegal argument to cols")
+        ) 
     (* casting *)
     | SCall ("ftoi", [e]) -> 
         L.build_fptosi (expr builder e) i32_t "fto" builder
     | SCall ("itof", [e]) ->
         L.build_sitofp (expr builder e) float_t "ito" builder
     (* | SCall ("printstr", [e]) -> L.build_call printf_func [| string_format_str ; (expr builder e) |] "printstr" builder *)
-    | SMatLit(mat, _, _) -> let (_, sx) = List.hd (List.hd mat) in (match sx with
-        | SBoolLit _ -> let i1_lists = List.map (List.map (expr builder)) mat  in
-            let list_of_arrays = List.map Array.of_list i1_lists in
-            let i1_list_of_arrays = List.map (L.const_array i1_t) list_of_arrays in
-            let array_of_arrays = Array.of_list i1_list_of_arrays in
-            L.const_array (array_t i1_t (List.length (List.hd mat))) array_of_arrays
-        | SIntLit _  -> let i32_lists = List.map (List.map (expr builder)) mat in
-            let list_of_arrays = List.map Array.of_list i32_lists in
-            let i32_list_of_arrays = List.map (L.const_array i32_t) list_of_arrays in
-            let array_of_arrays = Array.of_list i32_list_of_arrays in
-            L.const_array (array_t i32_t (List.length (List.hd mat))) array_of_arrays
-        | SFloatLit _ -> let float_lists = List.map (List.map (expr builder)) mat in
-            let list_of_arrays = List.map Array.of_list float_lists in
-            let float_list_of_arrays = List.map (L.const_array float_t) list_of_arrays in
-            let array_of_arrays = Array.of_list float_list_of_arrays in
-            L.const_array (array_t float_t (List.length (List.hd mat))) array_of_arrays
-        | _ -> raise (Failure "unsupported matrix type"))
+    | SMatLit(mat, _, _) -> 
+        let lty = ltype_of_typ (fst (List.hd (List.hd mat))) in 
+        let expr_lists = List.map (List.map (expr builder)) mat  in
+        let list_of_arrays = List.map Array.of_list expr_lists in
+        let list_of_larrays = List.map (L.const_array lty) list_of_arrays in
+        let array_of_larrays = Array.of_list list_of_larrays in
+        L.const_array (array_t lty (List.length (List.hd mat))) array_of_larrays
     | SMatAccess (id, row, col) ->
         let row = expr builder row in
         let col = expr builder col in
