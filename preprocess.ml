@@ -8,7 +8,7 @@ let merge_tbl tbl1 tbl2 =
           None, None -> assert false
         | Some t1, None -> Some t1
         | None, Some t2 -> Some t2
-        | Some t1, Some t2 -> Some t1) in
+        | Some t1, Some _ -> Some t1) in
     StringMap.merge opt tbl1 tbl2
 
 let rec from_file file =
