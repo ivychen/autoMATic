@@ -55,12 +55,7 @@ let ltype_of_typ = function
     | A.Float  -> float_t
     | A.Void   -> void_t
     | A.String -> str_t
-    (* | A.Matrix(typ, rows, cols) -> (match typ with
-                                        | A.Int   -> array_t (array_t i32_t cols)   rows
-                                        | A.Bool  -> array_t (array_t i1_t cols)    rows
-                                        | A.Float -> array_t (array_t float_t cols) rows
-                                        | _       -> raise (Failure "internal error: invalid matrix type")) *)
-    | A.Matrix(typ, _, _) -> (match typ with
+    | A.Matrix(typ) -> (match typ with
                                           A.Int   -> matrix_i
                                         | A.Float -> matrix_f
                                         | A.Bool  -> matrix_b
@@ -78,9 +73,9 @@ let type_of_llvalue llval =
   | "double" -> A.Float
   | "i1"    -> A.Bool
   | "i8*"    -> A.String
-  | "%matrix_i*" -> A.Matrix(A.Int, 0,0)
-  | "%matrix_b*" -> A.Matrix(A.Bool, 0,0)
-  | "%matrix_f*" -> A.Matrix(A.Float, 0,0)
+  | "%matrix_i*" -> A.Matrix(A.Int)
+  | "%matrix_b*" -> A.Matrix(A.Bool)
+  | "%matrix_f*" -> A.Matrix(A.Float)
   | _       -> raise (Failure "invalid type"))
 in
 
@@ -99,7 +94,7 @@ let is_matrix_ptr ptr =
 in
 
 let is_mat m = match m with
-  A.Matrix(_,_,_) -> true
+  A.Matrix(_) -> true
 | _ -> false
 in
 
@@ -112,7 +107,7 @@ let init_var typ = (match typ with
                     | A.Bool -> L.const_int i1_t 0
                     | A.String -> L.const_bitcast empty_string str_t
                     | A.Void -> L.const_null void_t
-                    | A.Matrix(ty, _, _) -> (match ty with
+                    | A.Matrix(ty) -> (match ty with
                                               A.Int   -> L.const_null matrix_i
                                             | A.Float -> L.const_null matrix_f
                                             | A.Bool  -> L.const_null matrix_b
@@ -266,7 +261,7 @@ let build_function_body fdecl =
         ignore(L.build_store (L.const_int i32_t c) m_c builder); m
     in
 
-    let build_mat_init prev_mat r c mat_type lltype expr builder =
+    let build_mat_init prev_mat size mat_type lltype expr builder =
       let init_mat = if lltype = float_t then B.List.make r (B.List.make c (A.Float, SFloatLit(0.0)))
                      else if lltype = i1_t then B.List.make r (B.List.make c (A.Bool, SBoolLit(false)))
                      else if lltype = i32_t then B.List.make r (B.List.make c (A.Int, SIntLit(0)))
@@ -317,6 +312,38 @@ let build_function_body fdecl =
     let get_styp e = fst e
     in
 
+    (* Each basic block in a program ends with a "terminator" instruction i.e.
+    one that ends the basic block. By definition, these instructions must
+    indicate which basic block comes next -- they typically yield "void" value
+and produce control flow, not values *)
+    (* Invoke "f builder" if the current block doesn't already
+       have a terminator (e.g., a branch). *)
+    let add_terminal builder f =
+        (* The current block where we're inserting instr *)
+        match L.block_terminator (L.insertion_block builder) with
+        Some _ -> ()
+  | None -> ignore (f builder) in
+
+    let mat_loop (size : L.llvalue) (f : L.llvalue -> L.llbuilder -> L.llbuilder) =
+      let pred_bb = L.append_block context "mwhile" the_function in
+      let idx = L.build_sub size (L.const_int i32_t 1) "index" builder in
+
+      let _ = L.build_br pred_bb builder in
+      let body_bb = L.append_block context "mwhile_body" the_function in
+      let pred_builder = L.builder_at_end context pred_bb in
+      let bool_val = L.build_icmp L.Icmp.Uge idx (L.const_int i32_t 0) "" builder in
+
+      let merge_bb = L.append_block context "mwhile_merge" the_function in
+      let _ = L.build_cond_br bool_val body_bb merge_bb pred_builder in
+      let _ = L.builder_at_end context merge_bb in
+
+      let while_builder = f idx (L.builder_at_end context body_bb) in
+      let _ = L.build_sub idx (L.const_int i32_t 1) "" while_builder in
+
+      let () = add_terminal while_builder (L.build_br pred_bb)
+      in L.builder_at_end context merge_bb
+    in
+
     let rec expr builder (_, e) = match e with
     | SIntLit i -> L.const_int i32_t i
     | SBoolLit b -> L.const_int i1_t (if b then 1 else 0)
@@ -347,15 +374,18 @@ let build_function_body fdecl =
                            else let copy = L.build_alloca (ltype_of_typ ty) "copy" builder in
                                 let _ = L.build_store e2' copy builder in
                                 let result = L.build_alloca (ltype_of_typ ty) "result" builder in (match ty with
-                                | A.Matrix(A.Float, rows, cols) ->
-                                        for i = 0 to rows - 1 do
-                                            for j = 0 to cols - 1 do
-                                                let reg = L.build_gep result
-                                                    [| zero; L.const_int i32_t i; L.const_int i32_t j |] "gep" builder in
-                                                let prod = L.build_fmul (L.build_load reg "load" builder) e1' "prod" builder
-                                                in ignore (L.build_store prod reg builder)
-                                            done;
-                                        done; L.build_load result "prod" builder
+                                | A.Matrix(A.Float) ->
+                                    let rows = L.build_load (L.build_struct_gep e2' 1 "m_row" builder) "" builder
+                                    and cols = L.build_load (L.build_struct_gep e2' 2 "m_col" builder) "" builder in
+                                    let size = L.build_mul rows cols "" builder in
+                                    let loop idx builder =
+                                      let reg = L.build_gep result [| zero; idx |] "gep" builder in
+                                      let prod = L.build_fmul (L.build_load reg "load" builder) e1' "prod" builder in
+                                      let _ = L.build_store prod reg builder in
+                                      builder
+                                    in
+                                    let builder = mat_loop size loop in
+                                    L.build_load result "prod" builder
                                 | _ -> raise (Invalid_argument "invalid scalar multiplication"))
             | A.Exp     -> let (ty, _) = e2 in
                            let safe_cast = if ty = A.Int then L.build_sitofp e2' float_t "safe_cast" builder else e2'
@@ -377,15 +407,18 @@ let build_function_body fdecl =
                            else let copy = L.build_alloca (ltype_of_typ ty) "copy" builder in
                                 let _ = L.build_store e2' copy builder in
                                 let result = L.build_alloca (ltype_of_typ ty) "result" builder in (match ty with
-                                | A.Matrix(A.Int, rows, cols) ->
-                                        for i = 0 to rows - 1 do
-                                            for j = 0 to cols - 1 do
-                                                let reg = L.build_gep result
-                                                    [| zero; L.const_int i32_t i; L.const_int i32_t j |] "gep" builder in
-                                                let prod = L.build_mul (L.build_load reg "load" builder) e1' "prod" builder
-                                                in ignore (L.build_store prod reg builder)
-                                            done;
-                                        done; L.build_load result "prod" builder
+                                | A.Matrix(A.Float) ->
+                                    let rows = L.build_load (L.build_struct_gep e2' 1 "m_row" builder) "" builder
+                                    and cols = L.build_load (L.build_struct_gep e2' 2 "m_col" builder) "" builder in
+                                    let size = L.build_mul rows cols "" builder in
+                                    let loop idx builder =
+                                      let reg = L.build_gep result [| zero; idx |] "gep" builder in
+                                      let prod = L.build_mul (L.build_load reg "load" builder) e1' "prod" builder in
+                                      let _ = L.build_store prod reg builder in
+                                      builder
+                                    in
+                                    let builder = mat_loop size loop in
+                                    L.build_load result "prod" builder
                                 | _ -> raise (Invalid_argument "invalid scalar multiplication"))
             | A.Exp     -> let (ty, _) = e2 in
                            let cast = L.build_sitofp e1' float_t "cast" builder
@@ -404,78 +437,56 @@ let build_function_body fdecl =
             | A.Mod     -> L.build_srem  e1' e2' "tmp" builder
             | _         -> raise (Failure "internal error: semant should have rejected and/or on int"))
         (* Binary matrix operations *)
-        | A.Matrix(ty, rows, mid1) -> (match e2 with
-            | (A.Matrix(ty, mid2, cols), _) -> (match ty with
+        | A.Matrix(ty) -> (match e2 with
+            | (A.Matrix(ty), _) -> (match ty with
                 (* Binary boolean matrix operations *)
-                | A.Bool -> let copy1 = L.build_alloca (array_t (array_t i1_t mid1) rows) "copy" builder in
-                            let e_m1 = L.build_bitcast (L.build_struct_gep e1' 0 "copy_cast" builder)  (pointer_t (pointer_t (array_t (array_t i1_t mid1) rows))) "copy_res" builder in
+                | A.Bool -> let larr = L.build_load (L.build_struct_gep e1' 0 "m_arr" builder) "" builder in
+                            let lrow = L.build_load (L.build_struct_gep e1' 1 "m_row" builder) "" builder in
+                            let lcol = L.build_load (L.build_struct_gep e1' 2 "m_col" builder) "" builder in
+
+                            let rarr = L.build_load (L.build_struct_gep e2' 0 "m_arr" builder) "" builder in
+                            let rrow = L.build_load (L.build_struct_gep e2' 1 "m_row" builder) "" builder in
+                            let rcol = L.build_load (L.build_struct_gep e2' 2 "m_col" builder) "" builder in
+
+                            (* TODO: assert that left/right dimensions are equal *)
+
+                            let size = L.build_mul lrow lcol "" builder in
+                            
+                            let copy1 = L.build_array_alloca i1_t size "copy" builder in
+                            let e_m1 = L.build_bitcast (L.build_struct_gep e1' 0 "copy_cast" builder)  (pointer_t (pointer_t i1_t)) "copy_res" builder in
                             let _ = L.build_store (L.build_load (L.build_load e_m1 "load_ptr" builder) "load_mat" builder) copy1 builder in
                             (* let _ = L.build_store e1' copy1 builder in *)
-                            let copy2 = L.build_alloca (array_t (array_t i1_t cols) mid2) "copy" builder in
-                            let e_m2 = L.build_bitcast (L.build_struct_gep e2' 0 "copy_cast" builder)  (pointer_t (pointer_t (array_t (array_t i1_t cols) mid2))) "copy_res" builder in
+                            let copy2 = L.build_array_alloca i1_t size "copy" builder in
+                            let e_m2 = L.build_bitcast (L.build_struct_gep e2' 0 "copy_cast" builder)  (pointer_t (pointer_t i1_t)) "copy_res" builder in
                             let _ = L.build_store (L.build_load (L.build_load e_m2 "load_ptr" builder) "load_mat" builder) copy2 builder
 
-                            and result = L.build_alloca (array_t (array_t i1_t cols) rows) "result" builder in
+                            and result = L.build_array_alloca i1_t size "result" builder in
                             let m = (L.build_alloca matrix_b "b_init" builder) in
-                            let result_struct = build_mat_init m rows cols matrix_b i1_t expr builder in
-                            let result_cast = L.build_bitcast (L.build_struct_gep m 0 "b_cast" builder)  (pointer_t (pointer_t (array_t (array_t i1_t cols) rows))) "b_result" builder in
+                            let result_struct = build_mat_init m size matrix_b i1_t expr builder in
+                            let result_cast = L.build_bitcast (L.build_struct_gep m 0 "b_cast" builder)  (pointer_t (pointer_t i1_t)) "b_result" builder in
 
                     (match op with
-                    (*| A.Add      -> for i = 0 to rows - 1 do
-                                        let row = L.const_int i32_t i in
-                                        for j = 0 to cols - 1 do
-                                            let col = L.const_int i32_t j in
-                                            let v1 = L.build_load (L.build_gep copy1
-                                                [| zero; row; col |] "gep" builder) "load" builder
-                                            and v2 = L.build_load (L.build_gep copy2
-                                                [| zero; row; col |] "gep" builder) "load" builder in
-                                            let sum = L.build_add v1 v2 "sum" builder
-                                            and reg = L.build_gep result [| zero; row; col |] "gep" builder
-                                            in ignore (L.build_store sum reg builder)
-                                        done;
-                                    done;
-                                    L.build_load result "sum" builder
+                    | A.And      -> let loop idx builder =
+                                      let v1 = L.build_load (L.build_gep copy1 [| zero; idx |] "" builder) "" builder
+                                      and v2 = L.build_load (L.build_gep copy2 [| zero; idx |] "" builder) "" builder in
+                                      let and_res = L.build_and v1 v2 "" builder
+                                      and reg = L.build_gep result [| zero; idx |] "" builder in
+                                      let _ = L.build_store and_res reg builder in
+                                      builder
+                                    in
+                                    let builder = mat_loop size loop in 
+                                    ignore (L.build_store result result_cast builder); result_struct
 
-                    | A.Sub      -> for i = 0 to rows - 1 do
-                                        let row = L.const_int i32_t i in
-                                        for j = 0 to cols - 1 do
-                                            let col = L.const_int i32_t j in
-                                            let v1 = L.build_load (L.build_gep copy1
-                                                [| zero; row; col |] "gep" builder) "load" builder
-                                            and v2 = L.build_load (L.build_gep copy2
-                                                [| zero; row; col |] "gep" builder) "load" builder in
-                                            let diff = L.build_sub v1 v2 "diff" builder
-                                            and reg = L.build_gep result [| zero; row; col |] "gep" builder
-                                            in ignore (L.build_store diff reg builder)
-                                        done;
-                                    done; L.build_load result "diff" builder*)
-
-                    | A.And      -> for i = 0 to rows - 1 do
-                                        let row = L.const_int i32_t i in
-                                        for j = 0 to cols - 1 do
-                                            let col = L.const_int i32_t j in
-                                            let v1 = L.build_load (L.build_gep copy1
-                                                [| zero; row; col |] "gep" builder) "load" builder
-                                            and v2 = L.build_load (L.build_gep copy2
-                                                [| zero; row; col |] "gep" builder) "load" builder in
-                                            let and_res = L.build_and v1 v2 "and" builder
-                                            and reg = L.build_gep result [| zero; row; col |] "gep" builder
-                                            in ignore (L.build_store and_res reg builder)
-                                        done;
-                                    done; ignore (L.build_store result result_cast builder); result_struct
-                    | A.Or       -> for i = 0 to rows - 1 do
-                                        let row = L.const_int i32_t i in
-                                        for j = 0 to cols - 1 do
-                                            let col = L.const_int i32_t j in
-                                            let v1 = L.build_load (L.build_gep copy1
-                                                [| zero; row; col |] "gep" builder) "load" builder
-                                            and v2 = L.build_load (L.build_gep copy2
-                                                [| zero; row; col |] "gep" builder) "load" builder in
-                                            let or_res = L.build_or v1 v2 "or" builder
-                                            and reg = L.build_gep result [| zero; row; col |] "gep" builder
-                                            in ignore (L.build_store or_res reg builder)
-                                        done;
-                                    done; ignore (L.build_store result result_cast builder); result_struct
+                    | A.Or       -> let loop idx builder =
+                                      let v1 = L.build_load (L.build_gep copy1 [| zero; idx |] "" builder) "" builder
+                                      and v2 = L.build_load (L.build_gep copy2 [| zero; idx |] "" builder) "" builder in
+                                      let or_res = L.build_or v1 v2 "" builder
+                                      and reg = L.build_gep result [| zero; idx |] "" builder in
+                                      let _ = L.build_store or_res reg builder in
+                                      builder
+                                    in
+                                    let builder = mat_loop size loop in
+                                    ignore (L.build_store result result_cast builder); result_struct
                     | _ -> raise (Invalid_argument "invalid matrix binary operator"))
                 | A.Int -> let copy1 = L.build_alloca (array_t (array_t i32_t mid1) rows) "copy" builder in
                            let e_m1 = L.build_bitcast (L.build_struct_gep e1' 0 "copy_cast" builder)  (pointer_t (pointer_t (array_t (array_t i32_t mid1) rows))) "copy_res" builder in
@@ -1020,18 +1031,6 @@ let build_function_body fdecl =
             | _ -> f ^ "_result") in
         L.build_call fdef (Array.of_list actuals) result builder
     in
-
-    (* Each basic block in a program ends with a "terminator" instruction i.e.
-    one that ends the basic block. By definition, these instructions must
-    indicate which basic block comes next -- they typically yield "void" value
-and produce control flow, not values *)
-    (* Invoke "f builder" if the current block doesn't already
-       have a terminator (e.g., a branch). *)
-    let add_terminal builder f =
-        (* The current block where we're inserting instr *)
-        match L.block_terminator (L.insertion_block builder) with
-        Some _ -> ()
-  | None -> ignore (f builder) in
 
     (* Create a dummy blockent for creating SBlocks in codegen. We already
      * checked declarations and such in semant so what we put in the SBlock

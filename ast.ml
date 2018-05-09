@@ -8,7 +8,7 @@ type uop = Neg | Not | Inc | Dec | Trans
 (* type primitive = Int | Bool | Float | String | Void *)
 
 type typ =
-    Matrix of typ * int * int
+    Matrix of typ
   | Auto
   | MatrixRet of typ
   | Int
@@ -125,13 +125,13 @@ let string_of_typ = function
   | DataType(String)  -> "string"
   | DataType(Bool)    -> "bool"
   | DataType(Void)    -> "void" *)
-  | Matrix(t, r, c)   -> (match t with
-        Int   -> "int matrix (r:" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
-      | Float -> "float matrix (r:" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
-      | Bool  -> "bool matrix (r:" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
-      | String -> "string matrix (r:" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
-      | Void  -> "void matrix (r:" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
-      | Matrix(_,_,_) -> "invalid"
+  | Matrix(t)   -> (match t with
+        Int   -> "int matrix"
+      | Float -> "float matrix"
+      | Bool  -> "bool matrix"
+      | String -> "string matrix"
+      | Void  -> "void matrix"
+      | Matrix(_) -> "invalid"
       | Auto -> "invalid"
       | MatrixRet(_) -> "invalid"
     )
@@ -141,7 +141,7 @@ let string_of_typ = function
       | Bool  -> "bool matrix"
       | String -> "string matrix"
       | Void  -> "void matrix"
-      | Matrix(_,_,_) -> "invalid"
+      | Matrix(_) -> "invalid"
       | Auto -> "invalid"
       | MatrixRet(_) -> "invalid"
     )
