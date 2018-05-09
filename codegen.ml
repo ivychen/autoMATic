@@ -231,9 +231,8 @@ let build_function_body fdecl =
             | A.Mult    -> 
                 let (ty, _) = e2 in 
                 if ty = A.Float then L.build_fmul e1' e2' "tmp" builder
-                else let copy = L.build_alloca (ltype_of_typ ty) "copy" builder in 
-                     let _ = L.build_store e2' copy builder in
-                     let result = L.build_alloca (ltype_of_typ ty) "result" builder in (match ty with
+                else let result = L.build_alloca (ltype_of_typ ty) "result" builder in 
+                     let _ = L.build_store e2' result builder in (match ty with
                         | A.Matrix(A.Float, rows, cols) -> 
                             for i = 0 to rows - 1 do
                                 for j = 0 to cols - 1 do
@@ -266,9 +265,8 @@ let build_function_body fdecl =
             | A.Mult    -> 
                 let (ty, _) = e2 in 
                 if ty = A.Int then L.build_mul e1' e2' "tmp" builder
-                else let copy = L.build_alloca (ltype_of_typ ty) "copy" builder in 
-                     let _ = L.build_store e2' copy builder in
-                     let result = L.build_alloca (ltype_of_typ ty) "result" builder in (match ty with
+                else let result = L.build_alloca (ltype_of_typ ty) "result" builder in 
+                     let _ = L.build_store e2' result builder in (match ty with
                         | A.Matrix(A.Int, rows, cols) -> 
                             for i = 0 to rows - 1 do
                                 for j = 0 to cols - 1 do
@@ -406,16 +404,20 @@ let build_function_body fdecl =
                     done; L.build_load result "exp" builder
                 | (ty, _) when op = A.Mult || op = A.Div -> 
                         let result = L.build_alloca (ltype_of_typ t) "result" builder in
+                        let _ = L.build_store e1' result builder in
+
+                        let func = function
+                            | (A.Int, A.Mult)   -> L.build_mul
+                            | (A.Int, A.Div)    -> L.build_sdiv
+                            | (A.Float, A.Mult) -> L.build_fmul
+                            | (A.Float, A.Div)  -> L.build_fdiv
+                            | _ -> raise (Invalid_argument "invalid (type, operator) pair") 
+                        in
+
                         for i = 0 to rows - 1 do
                             for j = 0 to inner - 1 do
                                 let reg = L.build_gep result [| zero; L.const_int i32_t i; L.const_int i32_t j |] "gep" builder in
                                 let v = L.build_load reg "load" builder in
-                                let func = function
-                                    | (A.Int, A.Mult)   -> L.build_mul
-                                    | (A.Int, A.Div)    -> L.build_sdiv
-                                    | (A.Float, A.Mult) -> L.build_fmul
-                                    | (A.Float, A.Div)  -> L.build_fdiv
-                                    | _ -> raise (Invalid_argument "invalid (type, operator) pair") in
                                 let entry = (func (ty, op)) v e2' "entry" builder
                                 in ignore (L.build_store entry reg builder)
                             done;
