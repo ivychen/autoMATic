@@ -305,7 +305,7 @@ let build_function_body fdecl =
                 let _ = L.build_store e1' copy1 builder 
                 and copy2 = L.build_alloca (ltype_of_typ (fst e2)) "copy" builder in 
                 let _ = L.build_store e2' copy2 builder 
-                and result = L.build_alloca (array_t (array_t i1_t cols) rows) "result" builder in (match ty with 
+                and result = L.build_alloca (array_t (array_t (ltype_of_typ ty) cols) rows) "result" builder in (match ty with 
                     | A.Bool -> 
                         for i = 0 to rows - 1 do
                             for j = 0 to cols - 1 do
@@ -346,7 +346,7 @@ let build_function_body fdecl =
                         | A.Mult -> 
                             for i = 0 to rows - 1 do
                                 for j = 0 to cols - 1 do
-                                    let accum = ref zero in
+                                    let accum = ref (lfloat 0.) in
                                     for k = 0 to inner - 1 do
                                         let v1 = L.build_load (L.build_gep copy1 [| zero; lint i; lint k |] "gep" builder) "load" builder 
                                         and v2 = L.build_load (L.build_gep copy2 [| zero; lint k; lint j |] "gep" builder) "load" builder in
