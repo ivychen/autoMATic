@@ -280,6 +280,9 @@ let check (globals, functions) =
           (* Matrix multiplication requires matrices of the same inner dimensions and type *)
           (* Also not allowed on boolean matrices *)
           | Mult when mat_nonbool_match && inner_dim_eq t1 t2 -> Matrix(mat_typ t1, fst (mat_dim t1), snd (mat_dim t2))
+          | Mult when is_mat t1 && mat_typ t1 = t2 && t2 != Bool -> Matrix(t2, fst (mat_dim t1), snd (mat_dim t1))
+          | Mult when is_mat t2 && mat_typ t2 = t1 && t1 != Bool -> Matrix(t1, fst (mat_dim t2), snd (mat_dim t2))
+          | Div  when is_mat t1 && mat_typ t1 = t2 && t2 != Bool -> Matrix(t2, fst (mat_dim t1), snd (mat_dim t1))
           (* Matrix exponentiation only valid for integer powers and square, non-boolean matrices *)
           | Exp when is_mat t1 && mat_typ t1 != Bool && t2 = Int && inner_dim_eq t1 t1 -> t1
           | Less | Leq | Greater | Geq
