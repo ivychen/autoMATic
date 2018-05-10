@@ -397,7 +397,7 @@ let check (globals, functions) =
               Matrix(t, _, _) -> if t = rhs_ty then (t, SMatAssign(s, se1, se2, se3))
                                   else raise(Failure("Invalid matrix assignment"))
             | _       ->  raise(Failure("Cannot assign incompatible element of " ^ string_of_typ ty ^ " in " ^ string_of_expr ex)))
-      | Call("rows", args) as call ->
+      | Call("rows", args) ->
           (* let _ = check_inited_or_fail call blk.symtbl in *)
           let _ = (if List.length args != 1 then raise (Failure "error: incorrect number of arguments in rows()")) in
           let e = List.hd args in
@@ -407,7 +407,7 @@ let check (globals, functions) =
             Matrix(_, _, _) -> (Int, SCall("rows", [e']))
           | _               -> raise (Failure "error: invalid use of rows on non-matrix argument"))
           else raise (Failure "error: called rows on non-matrix argument")
-      | Call("cols", args) as call->
+      | Call("cols", args) ->
           (* let _ = check_inited_or_fail call blk.symtbl in *)
           let _ = (if List.length args != 1 then raise (Failure "error: incorrect number of arguments in cols()")) in
           let e = List.hd args in
