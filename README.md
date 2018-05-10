@@ -56,61 +56,27 @@ Run `./test.sh`
 4. decide on whether to keep array type
 
 ## Build environment setup
-autoMATic needs the OCaml llvm library, which is most easily installed through opam.
+autoMATic needs the OCaml llvm library, specifically version **5.0**, which
+is most easily installed through opam.
 
-Install LLVM and its development libraries, the m4 macro preprocessor,
+Install LLVM-5.0 and its development libraries, the m4 macro preprocessor,
 and opam, then use opam to install llvm.
 
 The version of the OCaml llvm library must match the version of the LLVM
 system installed on your system.
 
-### Ubuntu 16.04
+### Ubuntu 16.04, 17.10, 18.04 and Debian 9
 
-LLVM 3.8 is the default under 16.04. Install the matching version of
-the OCaml LLVM bindings:
+Install the matching version of the OCaml LLVM bindings:
 
 ```
-sudo apt install ocaml llvm llvm-runtime m4 opam
+sudo apt install ocaml llvm-5.0 llvm-5.0-runtime m4 opam
 opam init
-opam install llvm.3.8
+opam install llvm.5.0
 eval `opam config env`
 
 make
 ./test.sh
-```
-
-### Installation under Ubuntu 15.10
-
-LLVM 3.6 is the default under 15.10, so we ask for a matching version of the
-OCaml library.
-
-```
-sudo apt-get install -y ocaml m4 llvm opam
-opam init
-opam install llvm.3.6 ocamlfind
-eval `opam config env`
-
-make
-./test.sh
-```
-
-### Installation under Ubuntu 14.04
-
-The default LLVM package is 3.4, so we install the matching OCaml
-library using opam.  The default version of opam under 14.04 is too
-old; we need to use a newer package.
-
-```
-sudo apt-get install m4 llvm software-properties-common
-
-sudo add-apt-repository --yes ppa:avsm/ppa
-sudo apt-get update -qq
-sudo apt-get install -y opam
-opam init
-
-eval `opam config env`
-
-opam install llvm.3.4 ocamlfind
 ```
 
 ### Installation under OS X
@@ -133,12 +99,12 @@ opam install llvm.3.4 ocamlfind
 
 5. Install llvm:
 
-   `brew install llvm`
+   `brew install llvm-5.0`
 
    Take note of where brew places the llvm executables. It will show
    you the path to them under the CAVEATS section of the post-install
    terminal output. For me, they were in /usr/local/opt/llvm/bin. Also
-   take note of the llvm version installed. For me, it was 3.6.2.
+   take note of the llvm version installed.
 
 6. Have opam set up your enviroment:
 
@@ -146,11 +112,11 @@ opam install llvm.3.4 ocamlfind
 
 7. Install the OCaml llvm library:
 
-   `opam install llvm.3.6 `
+   `opam install llvm.5.0`
 
    Ensure that the version of llvm you install here matches the
-   version you installed via brew. Brew installed llvm version 3.6.2,
-   so I install llvm.3.6 with opam.
+   version you installed via brew. Brew should install llvm version 5.0,
+   so install llvm.5.0 with opam.
 
    IF YOU HAVE PROBLEMS ON THIS STEP, it's probably because you are
    missing some external dependencies. Ensure that libffi is installed
@@ -158,13 +124,13 @@ opam install llvm.3.4 ocamlfind
 
    `brew install libffi`
 
-   If, after this, `opam install llvm.3.6` is still not working, try
+   If, after this, `opam install llvm.5.0` is still not working, try
    running
 
-   `opam list --external --required-by=llvm.3.6`
+   `opam list --external --required-by=llvm.5.0`
 
    This will list all of the external dependencies required by
-   llvm.3.6. Install all the dependencies listed by this command.
+   llvm.5.0. Install all the dependencies listed by this command.
 
    IF THE PREVIOUS STEPS DO NOT SOLVE THE ISSUE, it may be a problem
    with using your system's default version of llvm. Install a
@@ -173,7 +139,7 @@ opam install llvm.3.4 ocamlfind
 
    ```
    brew install homebrew/versions/llvm37
-   opam install llvm.3.7
+   opam install llvm.5.0
    ```
 
    Where the number at the end of both commands is a version different 
@@ -181,7 +147,7 @@ opam install llvm.3.4 ocamlfind
 
 8. Create a symbolic link to the lli command:
 
-   `sudo ln -s /usr/local/opt/llvm/bin/lli /usr/bin/lli`
+   `sudo ln -s /usr/local/opt/llvm/bin/lli-5.0 /usr/bin/lli`
 
    Create the symlink from wherever brew installs the llvm executables
    and place it in your bin. From step 5, I know that brew installed
@@ -222,7 +188,7 @@ opam install llvm.3.4 ocamlfind
    `export PATH=$PATH:/usr/local/opt/llvm/bin`
 
    A third solution is to modify the definition of LLI in test.sh to
-   point to the absolute path, e.g., `LLI="/usr/local/opt/llvm/bin/lli"`
+   point to the absolute path, e.g., `LLI="/usr/local/opt/llvm/bin/lli-5.0"`
 
 9. To run and test, navigate to the autoMATic folder. Once there, run
 
@@ -236,6 +202,6 @@ opam install llvm.3.4 ocamlfind
    For example, if the executable is named lli-[version], then the 
    previous step should have looked something like:
 
-   `sudo ln -s /usr/local/opt/llvm/bin/lli-3.7 /usr/bin/lli`
+   `sudo ln -s /usr/local/opt/llvm/bin/lli-5.0 /usr/bin/lli`
 
    As before, you may also modify the path to lli in test.sh
