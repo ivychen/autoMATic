@@ -20,7 +20,7 @@ let rec from_file file =
     from_channel ic
 and from_channel ic =
     let buf = Buffer.create 1024 in
-    let ps_key = "#ps" in (* very jank *)
+    let ps_key = "#ps" in
     let eval expr tbl = 
         if not (StringMap.mem ps_key tbl) 
         then match expr with
@@ -55,5 +55,3 @@ and from_channel ic =
     let init_tbl = StringMap.add ps_key "" StringMap.empty in
     let final_tbl = List.fold_right eval stmts init_tbl in
     (final_tbl, Buffer.contents buf)
-
-(* let _ = print_endline (from_file Sys.argv.(1)) *)
