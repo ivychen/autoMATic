@@ -1,12 +1,80 @@
+/* autoMATic Compiler - Spring 2018 - COMS4115 PLT
+ by Ivy Chen ic2389, Nguyen Chi Dung ncd2118,
+ Nelson Gomez ng2573, Jimmy O'Donnell jo2474 */
+
 /* additional printing functions */
 
-// print true/false instead of 1/0
-void printbool(bool b) {
-	if (b) {
-		print("true");
-	} else {
-		print("false");
+void printimat(int matrix A) {
+	int r = rows(A);
+	int c = cols(A);
+
+	// print the dimensions
+	print("[");
+	print(r);
+	print(" x ");
+	print(c);
+	println("] int");
+
+	// print the values
+	int i;
+	int j;
+	for (i = 0; i < r; i++) {
+		for (j = 0; j < c; j++) {
+			print(A[i][j]);
+			if (j != c - 1) {
+				print(", ");
+			}
+		}
+		println("");	
 	}
 }
 
-// TODO printmat function(s) once matrix syntax is stable
+void printfmat(float matrix A) {
+	int r = rows(A);
+	int c = cols(A);
+
+	// print the dimensions
+	print("[");
+	print(r);
+	print(" x ");
+	print(c);
+	println("] float");
+
+	// print the values
+	int i;
+	int j;
+	for (i = 0; i < r; i++) {
+		for (j = 0; j < c; j++) {
+			print(A[i][j]);
+			if (j != c - 1) {
+				print(", ");
+			}
+		}
+		println("");	
+	}
+}
+
+void printbmat(bool matrix A) {
+	int r = rows(A);
+	int c = cols(A);
+
+	// print the dimensions
+	print("[");
+	print(r);
+	print(" x ");
+	print(c);
+	println("] bool");
+
+	// print the values
+	int i;
+	int j;
+	for (i = 0; i < r; i++) {
+		for (j = 0; j < c; j++) {
+			print(A[i][j]);
+			if (j != c - 1) {
+				print(", ");
+			}
+		}
+		println("");	
+	}
+}

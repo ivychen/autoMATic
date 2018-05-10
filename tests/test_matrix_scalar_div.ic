@@ -1,0 +1,14 @@
+/* autoMATic Compiler - Spring 2018 - COMS4115 PLT
+ by Ivy Chen ic2389, Nguyen Chi Dung ncd2118,
+ Nelson Gomez ng2573, Jimmy O'Donnell jo2474 */
+
+int main() {
+    int matrix[2][2] a = [[2, 4]; [0, 2]] / 2;
+    
+    int i = 0, j = 0;
+    for (i = 0; i < 2; i++) {
+        for (j = 0; j < 2; j++) {
+            println(a[i][j]);
+        }   
+    }
+}

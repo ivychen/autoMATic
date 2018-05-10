@@ -1,3 +1,7 @@
+/* autoMATic Compiler - Spring 2018 - COMS4115 PLT
+ by Ivy Chen ic2389, Nguyen Chi Dung ncd2118,
+ Nelson Gomez ng2573, Jimmy O'Donnell jo2474 */
+
 int main() {
     float matrix x = [[12.0,16.0];[40.0,35.0]] ./ [[6.0,4.0];[10.0,7.0]];
     print(x[0][0]); // 2.0

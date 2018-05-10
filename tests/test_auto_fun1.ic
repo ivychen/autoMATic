@@ -1,6 +1,10 @@
+/* autoMATic Compiler - Spring 2018 - COMS4115 PLT
+ by Ivy Chen ic2389, Nguyen Chi Dung ncd2118,
+ Nelson Gomez ng2573, Jimmy O'Donnell jo2474 */
+
 
 int main() {
-    print(test());
+    println(test());
     return 0;
 }
 

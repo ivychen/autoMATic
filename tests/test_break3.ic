@@ -1,3 +1,7 @@
+/* autoMATic Compiler - Spring 2018 - COMS4115 PLT
+ by Ivy Chen ic2389, Nguyen Chi Dung ncd2118,
+ Nelson Gomez ng2573, Jimmy O'Donnell jo2474 */
+
 int main() {
 	int i;
 	int j;
@@ -10,13 +14,13 @@ int main() {
 			}
 		}
 
-		print(k);
+		println(k);
 		if (i == 4) break;
 	}
 
 	for (i = 10; i < 15; i = i + 1) {
 		if (i == 12) continue;
-		print(i);
+		println(i);
 		if (i == 14) break;
 	}
 

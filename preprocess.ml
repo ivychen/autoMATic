@@ -1,3 +1,7 @@
+(* autoMATic Compiler - Spring 2018 - COMS4115 PLT
+ by Ivy Chen ic2389, Nguyen Chi Dung ncd2118,
+ Nelson Gomez ng2573, Jimmy O'Donnell jo2474 *)
+
 open P_ast
 module StringMap = Map.Make (String)
 
@@ -51,5 +55,3 @@ and from_channel ic =
     let init_tbl = StringMap.add ps_key "" StringMap.empty in
     let final_tbl = List.fold_right eval stmts init_tbl in
     (final_tbl, Buffer.contents buf)
-
-(* let _ = print_endline (from_file Sys.argv.(1)) *)

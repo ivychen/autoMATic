@@ -1,3 +1,7 @@
+/* autoMATic Compiler - Spring 2018 - COMS4115 PLT
+ by Ivy Chen ic2389, Nguyen Chi Dung ncd2118,
+ Nelson Gomez ng2573, Jimmy O'Donnell jo2474 */
+
 int main() {
     int x = 5;
     float f = 4.2;
@@ -5,12 +9,12 @@ int main() {
     int r;
     int matrix M;
     M = [[1,2];[3,2];[3,3]];
-    print(x);
-    print(f);
-    print(s);
-    print(rows(M)); // 3
-    print(cols(M)); // 2
+    println(x);
+    println(f);
+    println(s);
+    println(rows(M)); // 3
+    println(cols(M)); // 2
     r = rows(M);
-    print(r); // 3
+    println(r); // 3
     return 0;
 }

@@ -1,9 +1,13 @@
+/* autoMATic Compiler - Spring 2018 - COMS4115 PLT
+ by Ivy Chen ic2389, Nguyen Chi Dung ncd2118,
+ Nelson Gomez ng2573, Jimmy O'Donnell jo2474 */
+
 #define MY_VAR 777
 #define MY_OTHER_VAR MY_VAR
 
 #ifdef MY_VAR
 void f() {
-	print(MY_VAR);
+	println(MY_VAR);
 }
 #end
 
@@ -13,17 +17,17 @@ void f() {
 
 #ifdef NUMBER
 void g() {
-	print("hello");
+	println("hello");
 }
 
 void h(int a) {
-	print(NUMBER + a);
+	println(NUMBER + a);
 }
 #end
 
 int main() {
-	f();  // should print 777
-	g();  // should print hello
-	h(5); // should print 105 (100 from stdlib_test.ic)
+	f();  // should println 777
+	g();  // should println hello
+	h(5); // should println 105 (100 from stdlib_test.ic)
 	return 0;
 }

@@ -1,3 +1,7 @@
+(* autoMATic Compiler - Spring 2018 - COMS4115 PLT
+ by Ivy Chen ic2389, Nguyen Chi Dung ncd2118,
+ Nelson Gomez ng2573, Jimmy O'Donnell jo2474 *)
+
 (* Semantic checking for the MicroC compiler *)
 
 open Ast
@@ -72,7 +76,7 @@ let check (globals, functions) =
     in match fd with (* No duplicate functions or redefinitions of built-ins *)
          _ when StringMap.mem n built_in_decls -> make_err built_in_err
        | _ when StringMap.mem n map -> make_err dup_err
-       | _ when n = "rows" || n = "cols" || n = "print" -> make_err dup_err
+       | _ when n = "rows" || n = "cols" || n = "print" || n = "println" -> make_err dup_err
        | _ ->  StringMap.add n fd map
   in
 
@@ -242,7 +246,7 @@ let check (globals, functions) =
               ty = Matrix(rtt, r, c);
               ety = None;
               const = false;
-              inited = (e' != SNoexpr);
+              inited = (e' <> SNoexpr);
             } in
             let _ = Hashtbl.replace blk.symtbl var entry' in
             let lt = type_of_identifier var blk.symtbl in
@@ -277,7 +281,7 @@ let check (globals, functions) =
           let same = t1 = t2 in
           (* Matrix helpers *)
           let mat_match = (is_mat t1 && is_mat t2 && (mat_typ t1 = mat_typ t2)) in
-          let mat_nonbool_match = mat_match && mat_typ t1 != Bool in
+          let mat_nonbool_match = mat_match && mat_typ t1 <> Bool in
           let dim_eq = (mat_dim t1 = mat_dim t2) in
           let inner_dim_eq x y = snd (mat_dim x) = fst (mat_dim y) in
           (* Determine expression type based on operator and operand types *)
@@ -292,8 +296,11 @@ let check (globals, functions) =
           (* Matrix multiplication requires matrices of the same inner dimensions and type *)
           (* Also not allowed on boolean matrices *)
           | Mult when mat_nonbool_match && inner_dim_eq t1 t2 -> Matrix(mat_typ t1, fst (mat_dim t1), snd (mat_dim t2))
+          | Mult when is_mat t1 && mat_typ t1 = t2 && t2 <> Bool -> Matrix(t2, fst (mat_dim t1), snd (mat_dim t1))
+          | Mult when is_mat t2 && mat_typ t2 = t1 && t1 <> Bool -> Matrix(t1, fst (mat_dim t2), snd (mat_dim t2))
+          | Div  when is_mat t1 && mat_typ t1 = t2 && t2 <> Bool -> Matrix(t2, fst (mat_dim t1), snd (mat_dim t1))
           (* Matrix exponentiation only valid for integer powers and square, non-boolean matrices *)
-          | Exp when is_mat t1 && mat_typ t1 != Bool && t2 = Int && inner_dim_eq t1 t1 -> t1
+          | Exp when is_mat t1 && mat_typ t1 <> Bool && t2 = Int && inner_dim_eq t1 t1 -> t1
           | Less | Leq | Greater | Geq
                      when same && (t1 = Int || t1 = Float) -> Bool
           | And | Or when same && t1 = Bool -> Bool
@@ -314,7 +321,7 @@ let check (globals, functions) =
               []        ->  (List.append ls [selem])
             | hd :: _   ->  let ty1 = fst (hd) in
                             let ty2 = fst (selem) in
-                            if ty1 != ty2 then raise (Failure("Matrix element types are inconsistent: " ^ string_of_typ ty1 ^ " with " ^ string_of_typ ty2 ^ " in " ^ string_of_expr mat)) else (List.append ls [selem])
+                            if ty1 <> ty2 then raise (Failure("Matrix element types are inconsistent: " ^ string_of_typ ty1 ^ " with " ^ string_of_typ ty2 ^ " in " ^ string_of_expr mat)) else (List.append ls [selem])
           in
         (* Check matrix rows, add to matrix *)
         let check_mat_rows mtx ls =
@@ -326,12 +333,12 @@ let check (globals, functions) =
                 if List.length sls = 0
                 then List.append mtx [sls] else raise(Failure("Matrices may not be jagged in " ^ string_of_expr mat))
             | (hd :: _) :: _  ->
-                if List.length (List.hd mtx) != List.length sls
+                if List.length (List.hd mtx) <> List.length sls
                 then raise(Failure("Matrices may not be jagged in " ^ string_of_expr mat))
                 else
                   let ty1 = fst (hd) in
                     let ty2 = fst (List.hd sls) in
-                    if ty1 != ty2
+                    if ty1 <> ty2
                     then raise (Failure("Matrix element types are inconsistent: " ^ string_of_typ ty1 ^ " with " ^ string_of_typ ty2 ^ " in " ^ string_of_expr mat))
                     else (List.append mtx [sls])
             in
@@ -346,7 +353,7 @@ let check (globals, functions) =
             else if mty = Float then (Matrix(Float, num_rows, num_cols), SMatLit(smat, num_rows, num_cols))
             else if mty = Bool then (Matrix(Bool, num_rows, num_cols), SMatLit(smat, num_rows, num_cols))
             else raise(Failure("Matrix elements must be of type Int, Bool or Float"))
-            (* if mty != DataType(Int) && mty != DataType(Float) && mty != DataType(Bool)
+            (* if mty <> DataType(Int) && mty <> DataType(Float) && mty <> DataType(Bool)
             then raise(Failure("Matrix elements must be of type Int, Bool or Float"))
             else (Matrix(mty, num_rows, num_cols), SMatLit(smat)) *)
       | MatAccess(s,e1,e2) as ex ->
@@ -419,7 +426,7 @@ let check (globals, functions) =
           else raise (Failure "error: called cols on non-matrix argument")
       | Call("print", args) as call ->
           let _ = check_inited_or_fail call blk.symtbl in
-          let _ = (if List.length args != 1 then raise (Failure "error: too many/few arguments in print()")) in
+          let _ = (if List.length args <> 1 then raise (Failure "error: too many/few arguments in print()")) in
           let e = List.hd args in
           let e' = expr blk e in
           let _ = (match e' with
@@ -428,13 +435,23 @@ let check (globals, functions) =
                                        let _ = (if fd.typ = Auto then (let _ = check_function fd in fd) else fd) in ()
           | _                       -> () )
           in (Void, SCall("print", [e']))
+      | Call("println", args) as call ->
+          let _ = check_inited_or_fail call blk.symtbl in
+          let _ = (if List.length args <> 1 then raise (Failure "error: too many/few arguments in println()")) in
+          let e = List.hd args in
+          let e' = expr blk e in
+          let _ = (match e' with
+            (_, SCall(fname, _))    -> let fd = find_func fname in
+                                       let _ = (if fd.typ = Auto then (let _ = check_function fd in fd) else fd) in ()
+          | _                       -> () )
+          in (Void, SCall("println", [e']))
       | Call(fname, args) as call ->
           let fd = find_func fname in
           (* let _ = print_string ("\ncalling function..." ^fname ^ "...returns " ^string_of_typ fd.typ) in *)
           let _ = check_inited_or_fail call blk.symtbl in
           let _ = (if fd.typ = Auto then (let _ = check_function fd in fd) else fd) in
           let param_length = List.length fd.formals in
-          if List.length args != param_length then
+          if List.length args <> param_length then
             raise (Failure ("expecting " ^ string_of_int param_length ^
                             " arguments in " ^ string_of_expr call))
           else let check_call (ft, n) e =
@@ -459,7 +476,7 @@ let check (globals, functions) =
     let check_bool_expr blk e =
       let (t', e') = expr blk e
       and err = "expected Boolean expression in " ^ string_of_expr e
-      in if t' != Bool then raise (Failure err) else (t', e')
+      in if t' <> Bool then raise (Failure err) else (t', e')
     in
 
     (* Return a semantically-checked statement i.e. containing sexprs *)

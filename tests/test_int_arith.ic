@@ -1,3 +1,7 @@
+/* autoMATic Compiler - Spring 2018 - COMS4115 PLT
+ by Ivy Chen ic2389, Nguyen Chi Dung ncd2118,
+ Nelson Gomez ng2573, Jimmy O'Donnell jo2474 */
+
 int main() {
 	int i;
 	int j;
@@ -7,32 +11,32 @@ int main() {
 	i = i + j;
 	j = i + j;
 
-	print(i); // 5
-	print(j); // 10
-	print(j - 1); // 9
-	print((j - 1) * 5); // 45
+	println(i); // 5
+	println(j); // 10
+	println(j - 1); // 9
+	println((j - 1) * 5); // 45
 
 	j = j - 5; // 5
-	if (i == j) print("i == j"); // true
+	if (i == j) println("i == j"); // true
 
 	i = i - 1; // 4
 
-	if (i == j) print("i == j"); // false
-	if (i != j) print("i != j"); // true
-	if (i < j) print("i < j"); // true
-	if (i <= j) print("i <= j"); // true
-	if (j <= j) print("j <= j"); // true
+	if (i == j) println("i == j"); // false
+	if (i != j) println("i != j"); // true
+	if (i < j) println("i < j"); // true
+	if (i <= j) println("i <= j"); // true
+	if (j <= j) println("j <= j"); // true
 
-	if (j <= i) print("j <= i"); // false
-	if (j > i) print("j > i"); // true
-	if (j >= i) print("j >= i"); // true
-	if (j >= j) print("j >= j"); // true
+	if (j <= i) println("j <= i"); // false
+	if (j > i) println("j > i"); // true
+	if (j >= i) println("j >= i"); // true
+	if (j >= j) println("j >= j"); // true
 
         i = 8;
         j = 2;
-        print(i / j); // 4
-        print(i / (j * 2)); // 2
-        print(j ** 3); // 8
+        println(i / j); // 4
+        println(i / (j * 2)); // 2
+        println(j ** 3); // 8
 
 	return 0;
 }

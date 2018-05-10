@@ -1,3 +1,7 @@
+/* autoMATic Compiler - Spring 2018 - COMS4115 PLT
+ by Ivy Chen ic2389, Nguyen Chi Dung ncd2118,
+ Nelson Gomez ng2573, Jimmy O'Donnell jo2474 */
+
 int main() {
     float matrix x = [[ 4.3, 5.1, 6.2 ]; [1.0, 0.0, 491.5]; [6.5, 3.0, 3.5]];
     float matrix y = x';
@@ -7,15 +11,15 @@ int main() {
     for (i = 0; i < rows(x); i++) {
         for (j = 0; j < rows(x); j++) {
             if (x[i][j] != y[j][i]) {
-                print("failure");
-                print(i);
-                print(j);
+                println("failure");
+                println(i);
+                println(j);
 
                 return 1;
             }
         }
     }
 
-    print("success");
+    println("success");
     return 0;
 }

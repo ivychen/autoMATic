@@ -1,3 +1,7 @@
+/* autoMATic Compiler - Spring 2018 - COMS4115 PLT
+ by Ivy Chen ic2389, Nguyen Chi Dung ncd2118,
+ Nelson Gomez ng2573, Jimmy O'Donnell jo2474 */
+
 // Euclid's GCD Algorithm
 
 int GCD(int a, int b) {
@@ -11,8 +15,8 @@ int GCD(int a, int b) {
 }
 
 int main() {
-    print(GCD(4, 8)); // 4
-    print(GCD(2, 7)); // 1
-    print(GCD(0, 0)); // 0
-    print(GCD(1048026, 924)); // 42
+    println(GCD(4, 8)); // 4
+    println(GCD(2, 7)); // 1
+    println(GCD(0, 0)); // 0
+    println(GCD(1048026, 924)); // 42
 }

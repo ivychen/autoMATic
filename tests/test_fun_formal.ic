@@ -1,3 +1,7 @@
+/* autoMATic Compiler - Spring 2018 - COMS4115 PLT
+ by Ivy Chen ic2389, Nguyen Chi Dung ncd2118,
+ Nelson Gomez ng2573, Jimmy O'Donnell jo2474 */
+
 int main() {
     int x = 4;
     string y = "test";
@@ -8,12 +12,12 @@ int main() {
 
 // main declarations of "x" and "y" should not conflict
 void test1(int x, string y) {
-    print(x);
-    print(y);
+    println(x);
+    println(y);
     test2(x);
 }
 
 // test2's formal "x" should not conflict with test1's
 void test2(int x) {
-    print(x);
+    println(x);
 }

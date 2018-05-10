@@ -1,10 +1,14 @@
+/* autoMATic Compiler - Spring 2018 - COMS4115 PLT
+ by Ivy Chen ic2389, Nguyen Chi Dung ncd2118,
+ Nelson Gomez ng2573, Jimmy O'Donnell jo2474 */
+
 int func(int a, int b) {
     return a + b;
 }
 
 int main() {
-    print(func(1, 2)); // 3
-    print(func(-600, 10)); // -590
-    print(func(12345, 67890)); // 80235
+    println(func(1, 2)); // 3
+    println(func(-600, 10)); // -590
+    println(func(12345, 67890)); // 80235
     return 0;
 }

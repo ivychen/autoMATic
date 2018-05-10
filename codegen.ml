@@ -1,3 +1,7 @@
+(* autoMATic Compiler - Spring 2018 - COMS4115 PLT
+ by Ivy Chen ic2389, Nguyen Chi Dung ncd2118,
+ Nelson Gomez ng2573, Jimmy O'Donnell jo2474 *)
+
 (* Code generation: translate takes a semantically checked AST and
 produces LLVM IR
 
@@ -121,6 +125,31 @@ let init_var typ = (match typ with
                     )
 in
 
+(* Get corresponding llvm instruction for matrix operations *)
+let bop_of = function
+    | A.Add -> L.build_add 
+    | A.Sub -> L.build_sub
+    | A.And -> L.build_and
+    | A.Or  -> L.build_or
+    | _ -> raise (Invalid_argument "illegal operation on boolean matrices") 
+in
+
+let iop_of = function
+    | A.Add      -> L.build_add
+    | A.Sub      -> L.build_sub 
+    | A.ElemMult -> L.build_mul
+    | A.ElemDiv  -> L.build_sdiv
+    | _ -> raise (Invalid_argument "illegal operation on integer matrices")
+in
+
+let fop_of = function
+    | A.Add      -> L.build_fadd
+    | A.Sub      -> L.build_fsub 
+    | A.ElemMult -> L.build_fmul
+    | A.ElemDiv  -> L.build_fdiv
+    | _ -> raise (Invalid_argument "illegal operation on float matrices")
+in
+
 (* Declare each global variable; remember its value in a map *)
   let global_vars = Hashtbl.create 100 in
     let global_var m (t, n) =
@@ -184,9 +213,14 @@ let build_function_body fdecl =
     let (the_function, _) = lookup_func fdecl.sfname function_decls in
     let builder = L.builder_at_end context (L.entry_block the_function) in
 
-    let int_format_str = L.build_global_stringptr "%d\n" "fmt" builder
-    and float_format_str = L.build_global_stringptr "%f\n" "fmt" builder
-    and string_format_str = L.build_global_stringptr "%s\n" "fmt" builder in
+    let int_format_str = L.build_global_stringptr "%d" "fmt" builder
+    and float_format_str = L.build_global_stringptr "%f" "fmt" builder
+    and string_format_str = L.build_global_stringptr "%s" "fmt" builder in
+
+    let int_format_str_n = L.build_global_stringptr "%d\n" "fmt" builder
+    and float_format_str_n = L.build_global_stringptr "%f\n" "fmt" builder
+    and string_format_str_n = L.build_global_stringptr "%s\n" "fmt" builder in
+
 
     (* Keep track of jump locations for breaking out of/continuing loops *)
     let continue_stack = ref []
@@ -336,7 +370,9 @@ let build_function_body fdecl =
             | A.Greater -> L.build_fcmp L.Fcmp.Ogt e1' e2' "tmp" builder
             | A.Geq     -> L.build_fcmp L.Fcmp.Oge e1' e2' "tmp" builder
             | A.Mod     -> L.build_frem  e1' e2' "tmp" builder
-            | _         -> raise (Failure "internal error: semant should have rejected and/or on float"))
+            | _         -> raise (Failure "internal error: semant should have rejected and/or on float")
+        )
+
         (* Binary integer operations *)
         | A.Int -> (match op with
             | A.Add     -> L.build_add e1' e2' "tmp" builder
@@ -858,6 +894,23 @@ let build_function_body fdecl =
         | A.Bool   -> L.build_call printf_func [| int_format_str ; (e') |] "printb" builder
         | _        -> raise (Failure "invalid print operation")
         )
+    | SCall ("println", [e]) ->
+        let e' = expr builder e in
+        (match (type_of_lvalue e') with
+          A.Int    -> L.build_call printf_func [| int_format_str_n ; (e') |] "print" builder
+        | A.Float  -> L.build_call printf_func [| float_format_str_n ; (e') |] "printflt" builder
+        | A.String -> L.build_call printf_func [| string_format_str_n ; (e') |] "printstr" builder
+        | A.Bool   -> L.build_call printf_func [| int_format_str_n ; (e') |] "printb" builder
+        | _        -> raise (Failure "invalid print operation")
+        )
+    | SCall ("rows", [e]) -> (match e with
+        | (A.Matrix(_, rows, _), _) -> lint rows
+        | _ -> raise (Invalid_argument "illegal argument to rows")
+        ) 
+    | SCall ("cols", [e]) -> (match e with
+        | (A.Matrix(_, _, cols), _) -> lint cols
+        | _ -> raise (Invalid_argument "illegal argument to cols")
+        ) 
     (* casting *)
     | SCall ("ftoi", [e]) ->
         L.build_fptosi (expr builder e) i32_t "fto" builder

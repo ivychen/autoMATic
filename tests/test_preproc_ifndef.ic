@@ -1,3 +1,7 @@
+/* autoMATic Compiler - Spring 2018 - COMS4115 PLT
+ by Ivy Chen ic2389, Nguyen Chi Dung ncd2118,
+ Nelson Gomez ng2573, Jimmy O'Donnell jo2474 */
+
 #include "lib/stdlib_test.ic"
 
 #ifndef NUMBER
@@ -9,7 +13,7 @@
 #end
 
 int main() {
-	print(AYYLMAO);
-	print(number()); // should print 100, not 42
+	println(AYYLMAO);
+	println(number()); // should println 100, not 42
 	return 0;
 }
