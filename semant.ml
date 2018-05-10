@@ -64,12 +64,7 @@ let check (globals, functions) =
       body = [] } map
     in List.fold_left add_bind StringMap.empty [ ("ftoi", [Float], Int);
                                                  ("itof", [Int], Float)
-                                                 (* ("size", [MatrixRet(Int)], Matrix(Int,1,2)); *)
-                                                 (* ("det", [Matrix], DataType(Float)); *) 
-                                                 (* ("size", [Matrix], Matrix);
-                                                 ("minor", [Matrix; Int; Int], Matrix);
-                                                 ("inv", [Matrix], Matrix);
-                                                 ("tr", [Matrix], Float)] *) ];
+                                               ];
   in
 
   (* Add function name to symbol table *)
@@ -118,7 +113,7 @@ let check (globals, functions) =
     (* === Matrix checking helpers === *)
     (* Check if param is a matrix or matrix shorthand *)
     let is_mat m = match m with
-      Matrix(_,_,_) | MatrixRet(_) -> true
+      Matrix(_,_,_) -> true
     | _ -> false
     in
     let is_mat_lit m = match m with
@@ -127,7 +122,7 @@ let check (globals, functions) =
     in
     (* Return element type of matrix or matrix shorthand *)
     let mat_typ m = match m with
-      Matrix(t, _, _) | MatrixRet(t) -> t
+      Matrix(t, _, _) -> t
     | _ -> Void
     in
     (* Return matrix dimensions (row, col) *)
@@ -163,7 +158,6 @@ let check (globals, functions) =
           Float
           Bool
           String
-          MatrixRef(primitive)
     *)
 
     let entry_of_identifier s tbl =
@@ -358,7 +352,7 @@ let check (globals, functions) =
           | _ -> raise (Failure ("attempting to access with a non-integer type"))) in
           (* Semantically checked matrix assignment *)
           (match ty with
-              Matrix(t, _, _) | MatrixRet(t) ->  (t, SMatAccess(s, se1, se2))
+              Matrix(t, _, _) -> (t, SMatAccess(s, se1, se2))
             | _       ->  raise(Failure("Cannot access elements of non-matrix type " ^ string_of_typ ty ^ " in " ^ string_of_expr ex)))
 
       | MatAssign(s,e1,e2,e3) as ex ->
@@ -389,7 +383,7 @@ let check (globals, functions) =
           (* Matrix type *)
           let ty = type_of_identifier s blk.symtbl in
           (match ty with
-              Matrix(t, _, _) | MatrixRet(t)  -> if t = rhs_ty then (t, SMatAssign(s, se1, se2, se3))
+              Matrix(t, _, _) -> if t = rhs_ty then (t, SMatAssign(s, se1, se2, se3))
                                   else raise(Failure("Invalid matrix assignment"))
             | _       ->  raise(Failure("Cannot assign incompatible element of " ^ string_of_typ ty ^ " in " ^ string_of_expr ex)))
       | Call("rows", args) as call ->
