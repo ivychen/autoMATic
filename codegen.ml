@@ -903,18 +903,6 @@ let build_function_body fdecl =
         let e' = expr builder e in
         let m_col = L.build_load (L.build_struct_gep e' 2 "m_col" builder) "" builder in
         m_col
-    | SCall ("imat", l) ->
-        let r' = expr builder (List.nth l 0)
-        and c' = expr builder (List.nth l 1)
-        in build_mat_empty r' c' matrix_i i32_t expr builder
-    | SCall ("fmat", l) ->
-        let r' = expr builder (List.nth l 0)
-        and c' = expr builder (List.nth l 1)
-        in build_mat_empty r' c' matrix_f float_t expr builder
-    | SCall ("bmat", l) ->
-        let r' = expr builder (List.nth l 0)
-        and c' = expr builder (List.nth l 1)
-        in build_mat_empty r' c' matrix_b i1_t expr builder
     | SMatLit(mat, r, c) ->
       let (_, sx) = List.hd (List.hd mat) in (match sx with
         | SBoolLit _  -> build_mat_lit mat r c matrix_b i1_t expr builder
