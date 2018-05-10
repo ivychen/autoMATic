@@ -38,6 +38,8 @@ let translate (globals, functions) =
     and pointer_t = L.pointer_type      in
     let str_t     = L.pointer_type i8_t
     and array_t   = L.array_type
+    and lint      = L.const_int i32_t
+    and lfloat    = L.const_float float_t
     and zero      = L.const_int i32_t 0
     and one       = L.const_int i32_t 1 in
     (* Create named structs for each of the matrix types, name encodes the type of the matrix
