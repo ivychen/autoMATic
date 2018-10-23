@@ -64,12 +64,7 @@ let check (globals, functions) =
       body = [] } map
     in List.fold_left add_bind StringMap.empty [ ("ftoi", [Float], Int);
                                                  ("itof", [Int], Float)
-                                                 (* ("size", [MatrixRet(Int)], Matrix(Int,1,2)); *)
-                                                 (* ("det", [Matrix], DataType(Float)); *) 
-                                                 (* ("size", [Matrix], Matrix);
-                                                 ("minor", [Matrix; Int; Int], Matrix);
-                                                 ("inv", [Matrix], Matrix);
-                                                 ("tr", [Matrix], Float)] *) ];
+                                                 ];
   in
 
   (* Add function name to symbol table *)
@@ -118,7 +113,7 @@ let check (globals, functions) =
     (* === Matrix checking helpers === *)
     (* Check if param is a matrix or matrix shorthand *)
     let is_mat m = match m with
-      Matrix(_,_,_) | MatrixRet(_) -> true
+      Matrix(_,_,_) -> true
     | _ -> false
     in
     let is_mat_lit m = match m with
@@ -127,13 +122,13 @@ let check (globals, functions) =
     in
     (* Return element type of matrix or matrix shorthand *)
     let mat_typ m = match m with
-      Matrix(t, _, _) | MatrixRet(t) -> t
+      Matrix(t, _, _) -> t
     | _ -> Void
     in
     (* Return matrix dimensions (row, col) *)
     let mat_dim m = match m with
       Matrix(_, r, c) -> (r, c)
-    | _ -> (-1, -1)
+    | _ -> (0, 0)
     in
 
     (* let data_typ d = match d with
@@ -151,6 +146,12 @@ let check (globals, functions) =
        else if not (is_mat lvaluet) && is_mat rvaluet && (lvaluet = mat_typ rvaluet) then lvaluet
        (* LHS is matrix, RHS is non-matrix -> LHS *)
        else if is_mat lvaluet && not (is_mat rvaluet) && (lvaluet = mat_typ rvaluet) then lvaluet
+       (* LHS is uninstantiated matrix (ie. dimensions = (0, 0)) and
+          RHS is matrix that has valid dimensions (nonnegative) *)
+       else if is_mat lvaluet && is_mat rvaluet && ((mat_dim lvaluet) = (0, 0)) &&
+              (fst (mat_dim rvaluet) > 0) && (snd (mat_dim rvaluet) > 0)
+            then rvaluet
+       (* Normal assignment *)
        else if lvaluet = rvaluet then lvaluet
        else raise (Failure err)
     in
@@ -209,8 +210,9 @@ let check (globals, functions) =
             let res = expr_inited e1 && expr_inited e2 && expr_inited e3 in
             let entry = entry_of_identifier s tbl in
             let _ = entry.inited <- true in res
-        | Call(_, args) ->
-            List.iter (fun e -> ignore (expr_inited e)) args; true
+        | Call(fname, args) ->
+            if fname = "rows" || fname = "cols" then ()
+            else List.iter (fun e -> ignore (expr_inited e)) args; true
         in (expr_inited e)
     in
 
@@ -226,10 +228,20 @@ let check (globals, functions) =
           let lt = type_of_identifier var blk.symtbl
           and _ = check_inited_or_fail ex blk.symtbl
           and (rt, e') = expr blk e in
-          (* If assigning matrix literal, update the symbtbl entry for the matrix dimensions *)
-          if (is_mat_lit e && is_mat lt) then
+
+          (* If assigning matrix literal or assigning to another matrix,
+             update the symbtbl entry for the matrix dimensions *)
+          if (is_mat_lit e && is_mat lt) || (is_mat lt && is_mat rt) then
             let rtt = mat_typ rt in
+            let (prev_r, prev_c) = mat_dim lt in
             let (r,c) = mat_dim rt in
+            (* Check if matrix dimensions have been initialized *)
+            let _ = if ((prev_r != 0 && prev_c != 0) && (prev_r != r || prev_c != c))
+                    then raise (Failure ("illegal matrix assignment, expecting matrix dimensions (" ^
+                    (string_of_int prev_r) ^ "," ^ (string_of_int prev_c) ^ ")"))
+                    else if (mat_typ lt != rtt) then raise (Failure ("illegal matrix assignment, expecting type " ^
+                    (string_of_typ lt) ^ " seen type " ^ (string_of_typ rtt)))
+                    in
             let entry' = {
               ty = Matrix(rtt, r, c);
               ety = None;
@@ -358,7 +370,7 @@ let check (globals, functions) =
           | _ -> raise (Failure ("attempting to access with a non-integer type"))) in
           (* Semantically checked matrix assignment *)
           (match ty with
-              Matrix(t, _, _) | MatrixRet(t) ->  (t, SMatAccess(s, se1, se2))
+              Matrix(t, _, _) ->  (t, SMatAccess(s, se1, se2))
             | _       ->  raise(Failure("Cannot access elements of non-matrix type " ^ string_of_typ ty ^ " in " ^ string_of_expr ex)))
 
       | MatAssign(s,e1,e2,e3) as ex ->
@@ -389,27 +401,27 @@ let check (globals, functions) =
           (* Matrix type *)
           let ty = type_of_identifier s blk.symtbl in
           (match ty with
-              Matrix(t, _, _) | MatrixRet(t)  -> if t = rhs_ty then (t, SMatAssign(s, se1, se2, se3))
+              Matrix(t, _, _) -> if t = rhs_ty then (t, SMatAssign(s, se1, se2, se3))
                                   else raise(Failure("Invalid matrix assignment"))
             | _       ->  raise(Failure("Cannot assign incompatible element of " ^ string_of_typ ty ^ " in " ^ string_of_expr ex)))
-      | Call("rows", args) as call ->
-          let _ = check_inited_or_fail call blk.symtbl in
-          let _ = (if List.length args <> 1 then raise (Failure "error: incorrect number of arguments in rows()")) in
+      | Call("rows", args) ->
+          (* let _ = check_inited_or_fail call blk.symtbl in *)
+          let _ = (if List.length args != 1 then raise (Failure "error: incorrect number of arguments in rows()")) in
           let e = List.hd args in
           let e' = expr blk e in
           let se_typ = get_styp e' in
           if is_mat (se_typ) then (match se_typ with
-            Matrix(_, r, _) -> (Int, SIntLit(r))
+            Matrix(_, _, _) -> (Int, SCall("rows", [e']))
           | _               -> raise (Failure "error: invalid use of rows on non-matrix argument"))
           else raise (Failure "error: called rows on non-matrix argument")
-      | Call("cols", args) as call->
-          let _ = check_inited_or_fail call blk.symtbl in
-          let _ = (if List.length args <> 1 then raise (Failure "error: incorrect number of arguments in cols()")) in
+      | Call("cols", args) ->
+          (* let _ = check_inited_or_fail call blk.symtbl in *)
+          let _ = (if List.length args != 1 then raise (Failure "error: incorrect number of arguments in cols()")) in
           let e = List.hd args in
           let e' = expr blk e in
           let se_typ = get_styp e' in
           if is_mat (se_typ) then (match se_typ with
-            Matrix(_, _, c) -> (Int, SIntLit(c))
+            Matrix(_, _, _) -> (Int, SCall("cols", [e']))
           | _               -> raise (Failure "error: invalid use of cols on non-matrix argument"))
           else raise (Failure "error: called cols on non-matrix argument")
       | Call("print", args) as call ->
@@ -418,7 +430,8 @@ let check (globals, functions) =
           let e = List.hd args in
           let e' = expr blk e in
           let _ = (match e' with
-            (_, SCall(fname, _))    -> let fd = find_func fname in
+          | (_, SCall(fname, _)) when fname = "rows" || fname = "cols" -> ()
+          | (_, SCall(fname, _))    -> let fd = find_func fname in
                                        let _ = (if fd.typ = Auto then (let _ = check_function fd in fd) else fd) in ()
           | _                       -> () )
           in (Void, SCall("print", [e']))
@@ -434,6 +447,7 @@ let check (globals, functions) =
           in (Void, SCall("println", [e']))
       | Call(fname, args) as call ->
           let fd = find_func fname in
+          (* let _ = print_string ("\ncalling function..." ^fname ^ "...returns " ^string_of_typ fd.typ) in *)
           let _ = check_inited_or_fail call blk.symtbl in
           let _ = (if fd.typ = Auto then (let _ = check_function fd in fd) else fd) in
           let param_length = List.length fd.formals in
@@ -449,6 +463,7 @@ let check (globals, functions) =
               " has illegal auto-declared parameter " ^ n
             (* Matrix param check *)
             in let ft' = if is_mat et && is_mat ft && (mat_typ et = mat_typ ft) then et else ft
+            (* in let _ = print_string ("\n" ^fname ^ " has argument of type " ^ (string_of_typ et) ^ " and return type = " ^ string_of_typ fd.typ) *)
             in let void_err = "illegal void formal " ^ n
             in let _ = if ft = Auto then raise (Failure auto_err)
             in let _ = if ft = Void then raise (Failure void_err)
@@ -478,15 +493,16 @@ let check (globals, functions) =
           in let _ = if t = Auto && e = Noexpr
                      then raise (Failure auto_err)
           in let t' = if t = Auto then et
+                      else if is_mat t && is_mat et then (check_assign t et type_err)
                       else t
           in let entry = {
             ty = t';
             ety = None;
             const = false;
-            inited = match e' with SNoexpr -> 
+            inited = match e' with SNoexpr ->
                                       (match t' with
-                                         (* Treat empty matrices as initialized *)
-                                         Matrix(_, r, c) -> (r = 0 || c = 0)
+                                         (* Treat empty matrices as UNinitialized *)
+                                         Matrix(_, r, c) -> (r != 0 || c != 0)
                                        | _ -> false)
                                  | _ -> true;
           }
@@ -526,8 +542,8 @@ let check (globals, functions) =
           (* If function return type is AUto, update return type to binding *)
           if func.typ = Auto then func.typ <- t;
           (* If function return type is a matrix, update return to specific matrix binding *)
-          if is_mat func.typ && is_mat t && (mat_typ func.typ = mat_typ t) then func.typ <- func.typ;
           (* If returning matrix, check if type match *)
+          if is_mat func.typ && is_mat t && (mat_typ func.typ = mat_typ t) then func.typ <- t;
           if is_mat func.typ && is_mat t && (mat_typ func.typ = mat_typ t) then SReturn(t, e')
           else if t = func.typ then SReturn(func.typ, e')
           else if func.fwasauto

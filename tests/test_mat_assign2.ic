@@ -1,0 +1,41 @@
+/* Create a matrix */
+// Assign to matrix literal
+int main() {
+    bool is_square;
+		int matrix M = [[1,2,3];[3,2,1]];
+    int matrix N;
+    N = M';
+    int i;
+    int j;
+    int test;
+		is_square = true;
+    i = 1;
+    j = 1;
+
+    print(M[0][0]); // 1
+    print(M[1][0]); // 3
+    print(M[0][1]); // 2
+    print(M[1][1]); // 2
+    print(N[1][0]); // 2
+
+
+		if (is_square == true) {
+      test = 10;
+      print(M[1][1]); // 2
+      M[0][0] = 5;
+      print(M[0][0]); // 5
+		} else {
+      test = 20;
+    }
+
+    print(rows(N)); // 3
+    print(cols(N)); // 2
+    print(rows(M)); // 2
+    print(cols(M)); // 3
+
+    print(test); // 10
+    test = M[i][j]; // set test = 2
+    print(test); // 2
+    print("success");
+    return 0;
+}

@@ -14,7 +14,6 @@ type uop = Neg | Not | Inc | Dec | Trans
 type typ =
     Matrix of typ * int * int
   | Auto
-  | MatrixRet of typ
   | Int
   | Bool
   | Float
@@ -137,17 +136,6 @@ let string_of_typ = function
       | Void  -> "void matrix (r:" ^ string_of_int r ^ ", c:" ^ string_of_int c ^")"
       | Matrix(_,_,_) -> "invalid"
       | Auto -> "invalid"
-      | MatrixRet(_) -> "invalid"
-    )
-  | MatrixRet(t)  -> (match t with
-        Int   -> "int matrix"
-      | Float -> "float matrix"
-      | Bool  -> "bool matrix"
-      | String -> "string matrix"
-      | Void  -> "void matrix"
-      | Matrix(_,_,_) -> "invalid"
-      | Auto -> "invalid"
-      | MatrixRet(_) -> "invalid"
     )
   | Auto -> "auto"
   (* | Array -> "array" *)

@@ -3,8 +3,8 @@
  Nelson Gomez ng2573, Jimmy O'Donnell jo2474 */
 
 int main() {
-    int matrix [3][3] x = [[ 5, 4, 3 ]; [ 4, 0, 4 ]; [ 7, 10, 3 ]];
-    int matrix [3][3] y = x';
+    int matrix x = [[ 5, 4, 3 ]; [ 4, 0, 4 ]; [ 7, 10, 3 ]];
+    int matrix y = x';
     int i;
     int j;
 

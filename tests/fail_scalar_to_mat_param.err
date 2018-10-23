@@ -1,1 +1,1 @@
-Fatal error: exception Failure("illegal argument found int expected int matrix (r:3, c:3) in 7")
+Fatal error: exception Failure("illegal argument found int expected int matrix (r:0, c:0) in 7")

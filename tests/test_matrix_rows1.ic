@@ -3,7 +3,7 @@
  Nelson Gomez ng2573, Jimmy O'Donnell jo2474 */
 
 int main() {
-    int matrix [7][1] x;
+    int matrix x;
     x = [ [1]; [1]; [1]; [1]; [1]; [1]; [1] ];
     println(rows(x)); // 7 
     return 0;

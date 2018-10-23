@@ -3,6 +3,6 @@
  Nelson Gomez ng2573, Jimmy O'Donnell jo2474 */
 
 int main() {
-    int matrix [2][2] x = [ [1,true]; [3.0,4] ];
+    int matrix x = [ [1,true]; [3.0,4] ];
     return 0;
 }

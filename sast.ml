@@ -53,9 +53,9 @@ type sstmt =
   | SWhile of sexpr * sstmt
 
 type sfunc_decl = {
-    styp : typ;
+    mutable styp : typ;
     sfname : string;
-    sformals : bind list;
+    mutable sformals : bind list;
     sblockinfo : blockent;
     sbody : sstmt list;
   }

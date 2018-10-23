@@ -3,7 +3,7 @@
  Nelson Gomez ng2573, Jimmy O'Donnell jo2474 */
 
 int main() {
-    bool matrix [1][1] x = [[true]] + [[true]];
-    println(x[0][0]);
+    bool matrix x = [[true]] + [[true]];
+    print(x[0][0]);
     return 0;
 }

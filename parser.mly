@@ -78,19 +78,12 @@ typ:
   | VOID               { Void  }
   | matrix_type        { $1 }
   | AUTO               { Auto }
-  | matrix_ret         { $1 }
 
 /* Matrices are declared with the type its elements, and number of rows, columns
    Example: int matrix [3][3] m;
 */
 matrix_type:
-  primitive MATRIX LBRACKET LITERAL RBRACKET LBRACKET LITERAL RBRACKET  { Matrix($1, $4, $7) }
-
-/* Return matrix from function, essentially a syntactic style choice
-   Example: int matrix main() { ... }
- */
-matrix_ret:
-  primitive MATRIX    { MatrixRet($1)}
+  primitive MATRIX { Matrix($1, 0, 0) }
 
 /* Primitive data types */
 primitive:

@@ -3,7 +3,7 @@
  Nelson Gomez ng2573, Jimmy O'Donnell jo2474 */
 
 int main() {
-    int matrix [2][2] x = [[1,2];[3,4]];
+    int matrix x = [[1,2];[3,4]];
     int i;
     int j = 0;
 
